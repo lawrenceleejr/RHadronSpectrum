@@ -26,7 +26,7 @@ From: nvidia/cuda:12.4.1-devel-ubuntu22.04
     rm -rf /var/lib/apt/lists/*
     python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel cython
     python3 -m pip install --no-cache-dir "numpy<2.1" scipy h5py mpi4py cupy-cuda12x matplotlib \
-        pyyaml gvar lsqfit pyerrors pytest
+        pyyaml gvar pyerrors pytest
     bash /opt/build/build_quda.sh
     bash /opt/build/build_pyquda.sh
 
