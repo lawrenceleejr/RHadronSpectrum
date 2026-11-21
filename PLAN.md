@@ -59,6 +59,43 @@ R-baryon), flavour-octet j=½ (g̃uud/g̃udd), octet j=3/2, decuplet j=½.
    whether R-meson + N → R-baryon + π is exothermic (drives detector phenomenology).
 4. Strong-decay thresholds per sector (lightest state + π, K) to say which levels are stable.
 
+### 1.5 Benchmark: the model ATLAS uses (ATL-PHYS-PUB-2019-019)
+
+The gluino R-hadron spectrum used in ATLAS Run-2 searches (and the Pythia8 R-hadron
+setup) is defined in ATL-PHYS-PUB-2019-019, "Generation and Simulation of R-Hadrons in
+the ATLAS Experiment" (CDS 2676309). It is **not** a QCD calculation: each R-hadron mass
+is the constituent gluino mass plus a sum of constituent quark masses, with the
+"uncertainty" taken as the spread over ten published constituent-mass sets (its Table 1).
+The gluinoball offset is fixed at 0.700 GeV. Offsets (GeV) from its Table 2, Pythia6 /
+min–max over mass sets:
+
+| State | content | offset | min–max |
+|---|---|---|---|
+| R-gluinoball (1000993) | g̃g | 0.700 | 0.700 (fixed) |
+| R-ρ⁰/ω/ρ⁺ (1009113/223/213) | g̃qq̄ | 0.650 | 0.403–0.717 |
+| R-K* (1009313/323) | g̃sq̄ | 0.825 | 0.620–0.891 |
+| R-φ (1009333) | g̃ss̄ | 1.800 | 0.828–1.074 |
+| R-Λ⁰ (1093214) | g̃uds | 1.150 | 0.280–0.715 |
+
+Consequences for this project:
+- The model has no hyperfine structure (no R-π vs R-ρ distinction), no excited states,
+  and a gluinoball offset not tied to the quark sector. Within its own spread the
+  lightest state can be R-Λ⁰, R-ρ or the gluinoball — i.e. the ordering this project
+  targets is undetermined by the model in use.
+- Only differences are comparable (the "constituent gluino mass" and the lattice δm are
+  both unphysical offsets). The headline comparison is, per §1.4, the lattice values of
+  Λ̄(g̃g) − Λ̄(g̃qq̄), Λ̄(g̃uds) − Λ̄(g̃qq̄), Λ̄(g̃sq̄) − Λ̄(g̃qq̄) against the
+  model's ranges [−0.017, +0.297], [−0.12, 0.00] (same-set differences), [+0.17, +0.22] GeV.
+- Deliverable addition: a drop-in table of lattice-based offsets keyed by these PDG IDs
+  (normalised so the lightest R-meson matches the model's convention, stated explicitly),
+  plus the lattice-implied charged/neutral/gluinoball composition inputs, so the result
+  can replace Table 2 in Pythia8/Geant4 R-hadron simulation.
+- Prior lattice inputs to cross-check in M0: Foster & Michael (UKQCD) hep-lat/9811010
+  (quenched gluelumps + first adjoint mesons), Marsh & Lewis 1309.1627 (full gluelump
+  J^PC), and the 2025 N_f=3+1 gluelump study arXiv:2501.15670 (dynamical gluelumps with
+  string-breaking thresholds). No unquenched lattice computation of R-mesons or
+  R-baryons is known to us; M0 must confirm this with a literature search.
+
 **Out of scope (state explicitly in the paper):** QED / isospin breaking (the few-MeV
 charged-vs-neutral R-meson ordering), 1/m_g̃ corrections, squark effects.
 
@@ -179,7 +216,7 @@ benchmark multigrid solve time; literature pass to verify every parameter in §3
 reference values in §6 (Foster–Michael hep-lat/9811010; Marsh–Lewis 1309.1627;
 Herr–Schlosser–Wagner 2306.09902; Bali–Pineda hep-ph/0310130; PACS-CS 0807.1661;
 Della Morte–Shindler–Sommer HYP static actions; Farrar / Buccella–Farrar–Pugliese;
-Kraan hep-ex/0404001). Write `docs/budget.md`.
+Kraan hep-ex/0404001; ATL-PHYS-PUB-2019-019; arXiv:2501.15670). Write `docs/budget.md`.
 *Gate:* stack passes plaquette + pion-correlator smoke test on GPU; budget approved by user.
 
 **M1 — Core library + CPU reference.** gauge I/O, smearing, adjoint lines, O_h / O_h^D
