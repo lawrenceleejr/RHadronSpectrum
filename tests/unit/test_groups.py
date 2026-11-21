@@ -47,3 +47,29 @@ def test_projectors_on_orbits(shape, cs):
     for i in range(0, 48, 5):
         for j in range(0, 48, 7):
             assert np.allclose(T[i] @ T[j], T[mt[i, j]])
+
+
+@pytest.mark.parametrize("shape", list(SHAPES))
+def test_irrep_coefficients_deterministic_and_valid(shape):
+    """Multiplicity bases must not depend on LAPACK/eigh (they did, across OSPool nodes)."""
+    from rhadron.operators.gluelump import irrep_coefficients
+    keys, c1 = irrep_coefficients(SHAPES[shape])
+    keys, c2 = irrep_coefficients(SHAPES[shape])
+    for k in c1:
+        assert np.array_equal(c1[k], c2[k])
+        v = c1[k]  # [row, mult, n]
+        G = np.einsum("rmn,rkn->rmk", v, v)
+        for r in range(v.shape[0]):
+            assert np.allclose(G[r], np.eye(v.shape[1]), atol=1e-12)  # orthonormal per row
+
+
+def test_canonical_basis_independent_of_input_rotation():
+    """Same projector given in a different numerical form -> identical basis."""
+    from rhadron.operators.gluelump import canonical_basis
+    rng = np.random.default_rng(0)
+    Q, _ = np.linalg.qr(rng.normal(size=(6, 2)))
+    P = Q @ Q.T
+    b1 = canonical_basis(P)
+    Q2 = Q @ np.array([[0.0, 1.0], [-1.0, 0.0]])  # rotated basis of the same subspace
+    b2 = canonical_basis(Q2 @ Q2.T)
+    assert np.allclose(b1, b2, atol=1e-12)

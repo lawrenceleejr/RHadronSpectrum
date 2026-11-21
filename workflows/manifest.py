@@ -98,6 +98,73 @@ def refresh_code(a):
     print(code_tarball(os.path.join(dagdir, "code.tar.gz")))
 
 
+def glue_dag(a):
+    """Re-measurement DAG: every stored configuration whose *_glue.h5 is missing or was produced by
+    code older than --good-since (git ancestry), batched per stream."""
+    ens = yaml.safe_load(open(a.ensemble))
+    tag = ens["tag"]
+    base = os.path.join(DATA, tag)
+    dagdir = os.path.join(base, "glue_dag")
+    os.makedirs(os.path.join(dagdir, "logs"), exist_ok=True)
+    sha = code_tarball(os.path.join(dagdir, "code.tar.gz"))
+    shutil.copy(a.ensemble, os.path.join(dagdir, "ens.yaml"))
+    shutil.copy(os.path.join(HERE, "wrapper.sh"), dagdir)
+
+    def good(path):
+        try:
+            with h5py.File(path, "r") as f:
+                s = str(f.attrs.get("git_sha", ""))
+        except Exception:  # noqa: BLE001
+            return False
+        r = subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor", a.good_since, s],
+                           capture_output=True)
+        return r.returncode == 0
+
+    import glob as _glob
+    todo = {}
+    for cfgp in sorted(_glob.glob(os.path.join(base, "s*", "out", f"{tag}_s*_c[0-9][0-9][0-9][0-9].h5"))):
+        gp = cfgp.replace(".h5", "_glue.h5")
+        if not (os.path.exists(gp) and good(gp)):
+            todo.setdefault(os.path.dirname(os.path.dirname(cfgp)), []).append(cfgp)
+    lines = [f"# {tag} gluelump re-measurement; code {sha}", f"CONFIG {dagdir}/dagman.config"]
+    n = 0
+    for sdir, cfgs in todo.items():
+        for k in range(0, len(cfgs), a.batch):
+            chunk = cfgs[k:k + a.batch]
+            node = f"glue_{os.path.basename(sdir)}_{k // a.batch}"
+            inputs = ",".join([os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml")] + chunk)
+            args = "glue --ensemble ens.yaml --outdir out --configs " + " ".join(os.path.basename(c) for c in chunk)
+            lines.append(f"JOB {node} {dagdir}/glue.sub")
+            lines.append(f'VARS {node} IWD="{sdir}" INPUTS="{inputs}" ARGS="{args}" NODE="{node}"')
+            lines.append(f"RETRY {node} 3")
+            n += len(chunk)
+    sub = f"""universe = vanilla
+container_image = {a.image}
+executable = {dagdir}/wrapper.sh
+arguments = $(ARGS)
+initialdir = $(IWD)
+should_transfer_files = YES
+transfer_input_files = $(INPUTS)
+transfer_output_files = out
+when_to_transfer_output = ON_EXIT_OR_EVICT
+request_gpus = 1
+require_gpus = {a.gpureq}
+request_cpus = 1
+request_memory = {a.mem}
+request_disk = {a.disk}
+log = {dagdir}/logs/glue.log
+output = {dagdir}/logs/$(NODE).out
+error = {dagdir}/logs/$(NODE).err
+queue
+"""
+    open(os.path.join(dagdir, "glue.sub"), "w").write(sub)
+    open(os.path.join(dagdir, "dagman.config"), "w").write(
+        f"DAGMAN_MAX_JOBS_SUBMITTED = {a.maxjobs}\nDAGMAN_MAX_JOBS_IDLE = {a.maxjobs}\n")
+    dag = os.path.join(dagdir, f"{tag}_glue.dag")
+    open(dag, "w").write("\n".join(lines) + "\n")
+    print(dag, f"{n} configurations")
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -112,10 +179,19 @@ def main():
     g.add_argument("--mem", default="8GB")
     g.add_argument("--disk", default="8GB")
     g.add_argument("--maxjobs", type=int, default=40)
+    gd = sub.add_parser("glue")
+    gd.add_argument("ensemble")
+    gd.add_argument("--good-since", required=True, help="first git SHA with the deterministic basis")
+    gd.add_argument("--batch", type=int, default=20)
+    gd.add_argument("--image", required=True)
+    gd.add_argument("--gpureq", default="(Capability == 7.0 || Capability == 8.0 || Capability == 9.0) && (GlobalMemoryMb >= 7000)")
+    gd.add_argument("--mem", default="8GB")
+    gd.add_argument("--disk", default="10GB")
+    gd.add_argument("--maxjobs", type=int, default=10)
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
     a = p.parse_args()
-    {"gen": gen_dag, "refresh-code": refresh_code}[a.cmd](a)
+    {"gen": gen_dag, "glue": glue_dag, "refresh-code": refresh_code}[a.cmd](a)
 
 
 if __name__ == "__main__":

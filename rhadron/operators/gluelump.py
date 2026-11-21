@@ -21,6 +21,29 @@ from .paths import SHAPES, orbit, path_field, rep_matrices
 C_LABEL = {-1: "-", +1: "+"}
 
 
+def canonical_basis(P, tol=1e-8):
+    """Orthonormal basis of range(P) by Gram-Schmidt on the projected unit vectors P e_0, P e_1, ...
+    in fixed order, each with its largest-magnitude component made positive.  Unlike eigh on a
+    degenerate projector, this is identical on every platform (the basis inside a multiplicity
+    subspace must be the same for all configurations; docs/logbook.md 2026-11-21)."""
+    m = int(round(np.trace(P)))
+    out = []
+    for k in range(P.shape[0]):
+        v = P[:, k].astype(float).copy()
+        for u in out:
+            v -= np.dot(u, v) * u
+        nv = np.linalg.norm(v)
+        if nv > tol:
+            v /= nv
+            v = np.round(v, 14)
+            j = int(np.argmax(np.abs(v) > np.abs(v).max() - 1e-12))
+            v *= np.sign(v[j])
+            out.append(v / np.linalg.norm(v))
+        if len(out) == m:
+            break
+    return np.array(out).reshape(len(out), P.shape[0])
+
+
 def irrep_coefficients(path, tol=1e-10):
     """For a shape: dict (irrep, C) -> array v[row, mult, n_paths] (orthonormal in the orbit space)."""
     keys, action = orbit(path)
@@ -30,8 +53,7 @@ def irrep_coefficients(path, tol=1e-10):
         T = rep_matrices(action, n, cs)
         for ir in IRREPS:
             P00 = projector(ir, T, 0, 0)
-            w, u = np.linalg.eigh(0.5 * (P00 + P00.T))
-            base = u[:, w > 0.5].T  # [mult, n]
+            base = canonical_basis(P00)  # [mult, n]; deterministic (no eigh: degenerate subspace)
             if base.shape[0] == 0:
                 continue
             d = dim(ir)

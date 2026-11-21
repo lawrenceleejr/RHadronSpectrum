@@ -182,6 +182,28 @@ def cmd_contract(a):
     io.save_h5(os.path.join(a.outdir, name), corr, meta)
 
 
+def cmd_glue(a):
+    """(Re-)measure gluelump correlators on stored configurations (fused gen measurement is identical)."""
+    ens = yaml.safe_load(open(a.ensemble))
+    xp = _xp(not a.cpu)
+    os.makedirs(a.outdir, exist_ok=True)
+    for path in a.configs:
+        name = os.path.basename(path).replace(".h5", "_glue.h5")
+        if os.path.exists(os.path.join(a.outdir, name)):
+            continue  # resumable
+        t0 = time.time()
+        U, at = io.load_gauge(path)
+        cfg_id = int(at["cfg"])
+        hyp1 = cfg_id % int(ens["gluelump"].get("hyp1_every", 4)) == 0
+        corr, lab = gluelump_measure(xp.asarray(U), ens["gluelump"], xp, hyp1)
+        meta = {"ensemble": ens["tag"], "stream": int(at["stream"]), "cfg": cfg_id, "sweeps": int(at["sweeps"]),
+                "plaq": float(at["plaq"]), "ens_hash": io.config_hash(ens), "git_sha": io.git_sha(),
+                "gauge_git_sha": str(at.get("git_sha", "")), "labels": json.dumps(lab),
+                "glue_params": ens["gluelump"], "remeasured": 1}
+        io.save_h5(os.path.join(a.outdir, name), corr, meta)
+        print(f"{name} {time.time() - t0:.0f}s", flush=True)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="rhadron")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -214,8 +236,13 @@ def main(argv=None):
     co.add_argument("--config", required=True)
     co.add_argument("--props", nargs="+", required=True)
     co.add_argument("--outdir", default="out")
+    gl = sub.add_parser("glue")
+    gl.add_argument("--ensemble", required=True)
+    gl.add_argument("--configs", nargs="+", required=True)
+    gl.add_argument("--outdir", default="out")
+    gl.add_argument("--cpu", action="store_true")
     a = p.parse_args(argv)
-    {"gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq, "solve": cmd_solve,
+    {"glue": cmd_glue, "gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq, "solve": cmd_solve,
      "contract": cmd_contract}[a.cmd](a)
 
 
