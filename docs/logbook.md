@@ -79,3 +79,15 @@ Decisions taken from it:
 - Eviction test (qA60 stream 8, job 43202007, vacated 05:03 UTC at sweep 410): spooled checkpoint
   at sweep 400 found in the job spool; resume confirmation pending job completion.
   Plaquette β=6.0, 24³×48: 0.5933–0.5938 (literature 0.593738(17)).
+
+## 2026-11-21 — M0 GPU smoke passed; FP64 GPU restriction for generation
+
+- M0 smoke (job 43204512.0, H100): QUDA clover propagator == CPU reference to 9.9e-14 with our
+  clover sign (−κ c_SW σ_μν F_μν); QUDA solution = 2κ × ours (asymmetric mass normalisation);
+  QUDA plaquette == ours. 5.2 GB image via OSDF container_image works.
+- Remaining M0 items (pion correlator, MG solve timing for the budget): measq benchmark 43206157.
+- Stage A first segments much slower than benchmarked on many nodes (qA57 3.9 h vs ~0.75 h; qA62
+  > 4.7 h vs ~1.1 h). Cause: complex128 CuPy kernels on low-FP64 GPUs (A40/3090/A5000/L40, 1/32-1/64
+  rate). Future generation nodes restricted to cc 7.0/8.0/9.0 (V100/A100/H100) by editing the
+  dag gen.sub files (applies at next submission); manifest default changed. Running jobs left to finish.
+- qA57: first segments complete, 344 configurations measured; qA60: 56.

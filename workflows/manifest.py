@@ -106,7 +106,9 @@ def main():
     g.add_argument("--streams", type=int, required=True)
     g.add_argument("--segment", type=int, required=True, help="compound sweeps per job")
     g.add_argument("--image", required=True)
-    g.add_argument("--gpureq", default="(Capability >= 6.0) && (GlobalMemoryMb >= 7000)")
+    # FP64-capable GPUs only (V100/A100/H100): the CuPy heatbath is complex128; consumer/A40-class
+    # cards run FP64 at 1/32-1/64 rate and were measured 3-5x slower overall.
+    g.add_argument("--gpureq", default="(Capability == 7.0 || Capability == 8.0 || Capability == 9.0) && (GlobalMemoryMb >= 7000)")
     g.add_argument("--mem", default="8GB")
     g.add_argument("--disk", default="8GB")
     g.add_argument("--maxjobs", type=int, default=40)
