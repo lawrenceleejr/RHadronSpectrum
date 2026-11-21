@@ -1,0 +1,8 @@
+*.sif
+__pycache__/
+*.pyc
+*.egg-info/
+workflows/dags/*/
+results/raw/
+*.h5
+.pytest_cache/
