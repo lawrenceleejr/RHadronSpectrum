@@ -75,7 +75,7 @@ def test_colour_singlet_meson_is_not_gauge_invariant_with_adjoint_line(cfg):
 
 @pytest.mark.parametrize("colour,flav,dq,j", [
     ("octet_A", "uud_A", "Cg5", "1/2"),
-    ("octet_S", "uds_singlet", "Cg5", "1/2"),
+    ("octet_S", "uds_singlet", "Cgi", "1/2"),
     ("octet_A", "uuu", "Cgi", "1/2"),
 ])
 def test_rbaryon_production_vs_reference(cfg, colour, flav, dq, j):
@@ -99,15 +99,15 @@ def test_rbaryon_gauge_invariant(cfg):
     assert np.abs(C - Cg).max() < 1e-8 * np.abs(C).max()
 
 
-def _rb_norm(cfg, colour, flav, dq, j):
+def _rb_norm(cfg, colour, flav, dq, j, nr=True):
     _, _, (S, W), _ = cfg
-    F = qo.baryon_tensor(colour, flav, dq, j)
+    F = qo.baryon_tensor(colour, flav, dq, j, nr=nr)
     C = hadron.contract_rbaryon(hadron.rbaryon_block(F, qo.baryon_bar(F), props(S), 2), W[:3])
     return np.abs(C).max()
 
 
 def test_su6_pauli_structure(cfg):
-    """Ground-state colour-octet qqq: spin-flavour in SU(6) 70 = (8,1/2)+(10,1/2)+(1,1/2)+(8,3/2).
+    """Nonrelativistic (upper-component) operators.  Ground-state colour-octet qqq: spin-flavour in SU(6) 70 = (8,1/2)+(10,1/2)+(1,1/2)+(8,3/2).
     Forbidden: (10, 3/2) and (1, 3/2).  Colour-singlet check: 56 = (8,1/2)+(10,3/2), so a local
     colour-singlet uuu j=1/2 vanishes and uds flavour-singlet vanishes."""
     ref = _rb_norm(cfg, "octet_A", "uud_A", "Cg5", "1/2")
@@ -126,6 +126,13 @@ def test_su6_pauli_structure(cfg):
     assert _rb_norm(cfg, "singlet", "uuu", "Cg5", "1/2") < tiny
     assert _rb_norm(cfg, "singlet", "uds_singlet", "Cg5", "1/2") < tiny
     assert _rb_norm(cfg, "singlet", "uuu", "Cgi", "3/2") > 1e-6 * ref
+
+
+def test_diquark_pauli_exact(cfg):
+    """Symmetric colour x antisymmetric flavour x antisymmetric spin (C g5) diquark is symmetric
+    under q1 <-> q2 and vanishes for full Dirac spinors (no NR projection needed)."""
+    ref = _rb_norm(cfg, "octet_A", "uud_A", "Cg5", "1/2", nr=False)
+    assert _rb_norm(cfg, "octet_S", "uds_singlet", "Cg5", "1/2", nr=False) < 1e-12 * ref
 
 
 def test_colour_octet_property():

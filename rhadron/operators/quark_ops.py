@@ -126,11 +126,15 @@ def baryon_spin_tensor(diquark, j, parity=+1):
     raise ValueError(diquark)
 
 
-def baryon_tensor(colour, flavour, diquark, j, parity=+1):
-    """F[a, rho, A, B, C] with A = (f, s, c)."""
+def baryon_tensor(colour, flavour, diquark, j, parity=+1, nr=False):
+    """F[a, rho, A, B, C] with A = (f, s, c).
+    nr=True: nonrelativistic operator, every quark field projected to upper components (P_+ q);
+    then the SU(6) spin-flavour classification is exact (Pauli-forbidden combinations vanish)."""
     K = colour_tensor(colour)
     phi = flavour_tensor(flavour)
     sig = baryon_spin_tensor(diquark, j, parity)
+    if nr:
+        sig = np.einsum("rabc,aA,bB,cC->rABC", sig, P_PLUS, P_PLUS, P_PLUS)
     F = np.einsum("aijk,fgh,rstu->arfsigtjhuk", K, phi, sig)
     na, nr = K.shape[0], sig.shape[0]
     return F.reshape(na, nr, NF * 12, NF * 12, NF * 12)
