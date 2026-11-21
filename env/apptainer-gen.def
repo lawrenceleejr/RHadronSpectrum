@@ -1,0 +1,20 @@
+# Lightweight image for Stage A (quenched generation + gluelump measurement): CuPy, no QUDA.
+Bootstrap: docker
+From: nvidia/cuda:12.4.1-runtime-ubuntu22.04
+
+%environment
+    export PYTHONNOUSERSITE=1
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends python3 python3-pip ca-certificates
+    rm -rf /var/lib/apt/lists/*
+    python3 -m pip install --no-cache-dir --upgrade pip
+    python3 -m pip install --no-cache-dir "numpy<2.1" scipy h5py pyyaml cupy-cuda12x
+
+%test
+    python3 -c "import numpy, cupy, h5py, yaml; print('ok')"
+
+%labels
+    project RHadronSpectrum

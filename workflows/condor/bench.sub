@@ -1,0 +1,19 @@
+# One-off benchmark job (Stage A cost: sweeps + gluelump measurement per ensemble).
+universe                 = vanilla
+container_image          = $(IMAGE)
+executable               = wrapper.sh
+arguments                = bench ens_qA57.yaml ens_qA60.yaml ens_qA62.yaml --sweeps 3 --outdir out
+initialdir               = $(IWD)
+should_transfer_files    = YES
+transfer_input_files     = code.tar.gz, ens_qA57.yaml, ens_qA60.yaml, ens_qA62.yaml
+transfer_output_files    = out
+transfer_output_remaps   = "out = out_$(Cluster)_$(Process)"
+request_gpus             = 1
+require_gpus             = $(GPUREQ)
+request_cpus             = 1
+request_memory           = 16GB
+request_disk             = 8GB
+log                      = logs/bench.log
+output                   = logs/bench_$(Cluster)_$(Process).out
+error                    = logs/bench_$(Cluster)_$(Process).err
+queue $(N)

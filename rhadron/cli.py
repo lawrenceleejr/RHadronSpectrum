@@ -102,6 +102,36 @@ def cmd_gen(a):
     print(f"done: sweep {done}, {time.time() - t_start:.0f}s", flush=True)
 
 
+def cmd_bench(a):
+    """Time compound sweeps and one gluelump measurement for each ensemble YAML (GPU if present)."""
+    xp = _xp(not a.cpu)
+    out = {}
+    for path in a.ensembles:
+        ens = yaml.safe_load(open(path))
+        shape = tuple(ens["shape"])
+        U = xp.asarray(random_gauge(shape, np.random.default_rng(0), eps=0.3))
+        rng = _rng(xp, 1)
+        sweep(U, float(ens["beta"]), rng, n_or=int(ens.get("n_or", 4)))  # warm-up / JIT
+        if xp is not np:
+            cp.cuda.Device().synchronize()
+        t0 = time.time()
+        for _ in range(a.sweeps):
+            sweep(U, float(ens["beta"]), rng, n_or=int(ens.get("n_or", 4)))
+        if xp is not np:
+            cp.cuda.Device().synchronize()
+        ts = (time.time() - t0) / a.sweeps
+        t0 = time.time()
+        gluelump_measure(U, ens["gluelump"], xp, True)
+        if xp is not np:
+            cp.cuda.Device().synchronize()
+        tm = time.time() - t0
+        mem = cp.get_default_memory_pool().total_bytes() / 2**30 if xp is not np else 0
+        out[ens["tag"]] = {"sec_per_sweep": ts, "sec_per_measure_hyp2_hyp1": tm, "pool_GB": mem}
+        print(ens["tag"], out[ens["tag"]], flush=True)
+    os.makedirs(a.outdir, exist_ok=True)
+    json.dump(out, open(os.path.join(a.outdir, "bench.json"), "w"), indent=1)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="rhadron")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -113,8 +143,13 @@ def main(argv=None):
     g.add_argument("--outdir", default=".")
     g.add_argument("--cpu", action="store_true")
     g.add_argument("--no-measure", action="store_true")
+    b = sub.add_parser("bench")
+    b.add_argument("ensembles", nargs="+")
+    b.add_argument("--sweeps", type=int, default=3)
+    b.add_argument("--outdir", default="out")
+    b.add_argument("--cpu", action="store_true")
     a = p.parse_args(argv)
-    {"gen": cmd_gen}[a.cmd](a)
+    {"gen": cmd_gen, "bench": cmd_bench}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -142,5 +142,5 @@ def baryon_bar(F):
     na, nr = F.shape[:2]
     Fr = np.conj(F.reshape(na, nr, NF, 4, 3, NF, 4, 3, NF, 4, 3))
     g4 = G[3]
-    Fb = np.einsum("Ss,Tt,Uu,arfsigthuk->arfSigThUk", g4, g4, g4, Fr)
+    Fb = np.einsum("Ss,Tt,Uu,arfsigtjhuk->arfSigTjhUk", g4, g4, g4, Fr)
     return Fb.reshape(na, nr, NF * 12, NF * 12, NF * 12)
