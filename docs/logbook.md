@@ -48,3 +48,18 @@ Decisions taken from it:
 - **ATLAS benchmark:** PLAN §1.5 quotes the Pythia6 column; ATLAS defaults are R-ρ 0.717, R-K* 0.886,
   R-φ 1.054, R-Λ⁰ 0.715, gluinoball 0.700 GeV. The model does include colour-magnetic splittings but
   only J=1 R-mesons. Both columns will be carried in the comparison table.
+
+## 2026-11-21 — M0/M1 progress, Stage A production started
+
+- Gen image `rhadron-gen-v2.sif` (CuPy + CUDA headers, no QUDA) on OSDF; v1 lacked headers for CuPy
+  JIT (bench cluster 43198961 failed, fixed). Benchmarks: cluster 43199466 (see docs/budget.md).
+- Toy end-to-end DAG (8³×16, 2 streams × 3 segments, gluelumps fused): DAGMan 43199618, ~6 min,
+  all segments resumed from checkpoints; one transient OSDF TLS hold at CHTC-Spark auto-released.
+  Plaquette (β=5.7, toy) → 0.550–0.553 (literature 0.54900(80) large volume).
+- Unit tests: 50+ CPU tests green except baryon NR tests still running at time of writing.
+  Fixed during M1: clover term Hermiticity (σ_μν = iγ_μγ_ν), two einsum index drops in R-baryon
+  tensors, SU(6) Pauli test now uses NR (upper-component) operators where the classification is exact.
+- Stage A production DAGs submitted (code a21ada7):
+  qA57 DAGMan 43200189 (10 streams, MAXJOBS 4), qA60 43200191 (10 streams, MAXJOBS 8),
+  qA62 43200192 (16 streams, MAXJOBS 8, cc >= 7.0 and >= 15 GB).
+- Eviction-resume test postponed to a production qA60 job (toy segments too short to vacate mid-run).
