@@ -127,10 +127,10 @@ def _solve_smeared_source(Q, li, d, Usm, x0, lev):
 
     Lx, Ly, Lz, Lt = li.global_size if hasattr(li, "global_size") else li.size
     x, y, z, t0 = x0
-    col = cp.zeros((1, Lz, Ly, Lx, 3, 3), dtype=cp.complex128)  # [.., a0, a]
+    col = cp.zeros((1, Lz, Ly, Lx, 3, 3), dtype=Usm.dtype)  # [.., a0, a]
     for a0 in range(3):
         col[0, z, y, x, a0, a0] = 1.0
-    col = wuppertal_cols(Usm[:3, t0:t0 + 1], col, lev[0], lev[1])
+    col = wuppertal_cols(Usm[:3, t0:t0 + 1], col, lev[0], lev[1]).astype(cp.complex128)
     S = cp.zeros((Lt, Lz, Ly, Lx, 4, 3, 4, 3), dtype=cp.complex128)
     for s0 in range(4):
         for a0 in range(3):
@@ -150,9 +150,9 @@ def _sink_smeared_site(Usm, S, x0, tmax, lev):
     x, y, z, t0 = x0
     Lt = S.shape[0]
     idx = [(t0 + t) % Lt for t in range(tmax + 1)]
-    sub = cp.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5))  # colour (sink) last
+    sub = cp.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)  # colour last
     sub = wuppertal_cols(Usm[:3, idx], sub, lev[0], lev[1])
-    return sub[:, z, y, x].transpose(0, 1, 4, 2, 3)  # -> [t, s, a, s0, a0]
+    return sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(S.dtype)  # -> [t, s, a, s0, a0]
 
 
 def contract_all(site, sites, W, roles, smears, tmax, qcfg):
@@ -253,9 +253,11 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
     t = lap("quda init", t)
     gauge = Q.to_quda_gauge(li, U_np)
     t = lap("gauge to quda layout", t)
+    # Smearing defines the interpolating operators only: single precision (complex64) is ample and
+    # ~30x faster on low-FP64 GPUs (A40 / RTX); solves (QUDA mixed) and contractions stay double.
     U = cp.asarray(U_np)
-    Usm = ape_spatial(U, qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
-    t = lap("APE link smearing", t)
+    Usm = ape_spatial(U.astype(cp.complex64), qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
+    t = lap("APE link smearing (fp32)", t)
     t0 = time.time()
     d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
                      multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
