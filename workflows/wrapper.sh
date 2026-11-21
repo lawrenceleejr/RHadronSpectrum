@@ -11,6 +11,7 @@ export PYTHONPATH="$PWD/code:${PYTHONPATH:-}"
 export RHADRON_GIT_SHA="$(cat code/GIT_SHA)"
 export CUPY_CACHE_DIR="$PWD/.cupy"
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
+export QUDA_RESOURCE_PATH="$PWD/out/quda_tune"; mkdir -p "$QUDA_RESOURCE_PATH"
 python3 -u -m rhadron.cli "$@"
 rc=$?
 echo "end: $(date -u +%FT%TZ) rc=$rc"

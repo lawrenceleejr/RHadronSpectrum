@@ -101,8 +101,7 @@ def run(U_np, qcfg, cfg_id, log=print):
                 Ssrc = _solve_smeared_source(Q, li, d, Usm, x0, lev)
                 timings.setdefault(f"solve_{role}", []).append(time.time() - t0)
                 for jlev, lev2 in enumerate(smears):
-                    Ssm = _sink_smear(Usm, Ssrc, lev2)
-                    out[(role, isrc, ilev, jlev)] = _site_series(Ssm, x0, tmax)
+                    out[(role, isrc, ilev, jlev)] = _sink_smeared_site(Usm, Ssrc, x0, tmax, lev2)
                 if ilev == 0:  # light hadrons: smeared source, point sink
                     for name, Gam in (("pi", qo.G5), ("rho", None), ("a0", qo.ONE)):
                         if Gam is None:
@@ -121,30 +120,39 @@ def run(U_np, qcfg, cfg_id, log=print):
 
 
 def _solve_smeared_source(Q, li, d, Usm, x0, lev):
+    """12 solves with a Wuppertal-smeared point source at x0 (smearing on the source timeslice only)."""
     import cupy as cp
 
-    from .dirac import wuppertal
+    from .dirac import wuppertal_cols
 
     Lx, Ly, Lz, Lt = li.global_size if hasattr(li, "global_size") else li.size
+    x, y, z, t0 = x0
+    col = cp.zeros((1, Lz, Ly, Lx, 3, 3), dtype=cp.complex128)  # [.., a0, a]
+    for a0 in range(3):
+        col[0, z, y, x, a0, a0] = 1.0
+    col = wuppertal_cols(Usm[:3, t0:t0 + 1], col, lev[0], lev[1])
     S = cp.zeros((Lt, Lz, Ly, Lx, 4, 3, 4, 3), dtype=cp.complex128)
     for s0 in range(4):
         for a0 in range(3):
             b = cp.zeros((Lt, Lz, Ly, Lx, 4, 3), dtype=cp.complex128)
-            b[x0[3], x0[2], x0[1], x0[0], s0, a0] = 1.0
-            b = wuppertal(Usm, b, lev[0], lev[1])
-            x = d.invert(Q._fermion_from_lexico(li, b))
-            S[..., s0, a0] = Q.lexico_xp(cp.asarray(x.data), cp)
+            b[t0, :, :, :, s0, :] = col[0, :, :, :, a0, :]
+            sol = d.invert(Q._fermion_from_lexico(li, b))
+            S[..., s0, a0] = Q.lexico_xp(cp.asarray(sol.data), cp)
     return S
 
 
-def _sink_smear(Usm, S, lev):
-    from .dirac import wuppertal
+def _sink_smeared_site(Usm, S, x0, tmax, lev):
+    """Sink-smear S on the timeslices t0..t0+tmax only and return the site series [tmax+1, 4,3,4,3]."""
+    from .dirac import wuppertal_cols
 
-    out = S.copy()
-    for s0 in range(4):
-        for a0 in range(3):
-            out[..., s0, a0] = wuppertal(Usm, S[..., s0, a0], lev[0], lev[1])
-    return out
+    cp = get_xp(S)
+
+    x, y, z, t0 = x0
+    Lt = S.shape[0]
+    idx = [(t0 + t) % Lt for t in range(tmax + 1)]
+    sub = cp.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5))  # colour (sink) last
+    sub = wuppertal_cols(Usm[:3, idx], sub, lev[0], lev[1])
+    return sub[:, z, y, x].transpose(0, 1, 4, 2, 3)  # -> [t, s, a, s0, a0]
 
 
 def contract_all(site, sites, W, roles, smears, tmax, qcfg):
@@ -240,7 +248,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
     Usm = ape_spatial(U, qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
     t0 = time.time()
     d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
-                     multigrid=qcfg.get("multigrid"))
+                     multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
     log(f"[{role}] dirac + MG setup {time.time() - t0:.1f}s", flush=True)
     for isrc, x0 in enumerate(sites):
         if f"src{isrc}/S_0_0" in done or f"src{isrc}" in {k.split('/')[0] for k in done}:
@@ -252,7 +260,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             cp.cuda.Device().synchronize()
             log(f"[{role}] src {isrc} level {il}: 12 solves {time.time() - t1:.1f}s", flush=True)
             for jl, lev2 in enumerate(smears):
-                done[f"src{isrc}/S_{il}_{jl}"] = to_numpy(_site_series(_sink_smear(Usm, Ssrc, lev2), x0, tmax))
+                done[f"src{isrc}/S_{il}_{jl}"] = to_numpy(_sink_smeared_site(Usm, Ssrc, x0, tmax, lev2))
             if il == 0:
                 done[f"src{isrc}/light_pi"] = to_numpy(light.meson(Ssrc, qo.G5, t0=x0[3]))
                 done[f"src{isrc}/light_rho"] = to_numpy(sum(light.meson(Ssrc, G[i], t0=x0[3]) for i in range(3)) / 3)

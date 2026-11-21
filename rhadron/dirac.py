@@ -124,3 +124,24 @@ def wuppertal(U, psi, alpha, n_iter, spatial_only=True):
                 h = h + shift(xp.einsum("...ba,...b->...a", U[i].conj(), psi), i, -1)
         psi = (psi + alpha * h) / (1.0 + 2 * len(dirs) * alpha)
     return psi
+
+
+def wuppertal_cols(U3, psi, alpha, n_iter):
+    """Fast spatial Wuppertal smearing on a subset of timeslices.
+    U3: spatial links restricted to the timeslices, [3, nt, z, y, x, 3, 3];
+    psi: [nt, z, y, x, ..., 3] with colour LAST and any number of extra (spin / column) axes.
+    Same operator as `wuppertal(..., spatial_only=True)`; batched matmul, all columns at once."""
+    xp = get_xp(psi)
+    shp = psi.shape
+    nt, Lz, Ly, Lx = shp[:4]
+    P = psi.reshape(nt, Lz, Ly, Lx, -1, 3)
+    Uf = [U3[i] for i in range(3)]
+    Ub = [shift(U3[i], i, -1).conj().swapaxes(-1, -2) for i in range(3)]  # U_i^dag(x - i)
+    for _ in range(n_iter):
+        h = 0
+        for i in range(3):
+            # U_i(x) psi(x+i):  [.., k, 3] @ U^T  ->  sum_b U_ab psi_kb
+            h = h + xp.matmul(shift(P, i, 1), Uf[i].swapaxes(-1, -2))
+            h = h + xp.matmul(shift(P, i, -1), Ub[i].swapaxes(-1, -2))
+        P = (P + alpha * h) / (1.0 + 6 * alpha)
+    return P.reshape(shp)

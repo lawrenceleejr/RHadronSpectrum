@@ -211,3 +211,30 @@ def test_production_baryon_operators_nonvanishing(cfg):
         n = np.abs(B).max()
         ref = n if ref is None else ref
         assert n > 1e-8 * ref, op
+
+
+def test_wuppertal_fast_matches_reference():
+    from rhadron.dirac import wuppertal, wuppertal_cols
+    rng = np.random.default_rng(9)
+    U = random_gauge(SHAPE, rng, eps=0.5)
+    psi = rng.normal(size=SHAPE + (4, 3)) + 1j * rng.normal(size=SHAPE + (4, 3))
+    ref = wuppertal(U, psi, 0.25, 3)
+    ts = [2, 3, 4]
+    fast = wuppertal_cols(U[:3, ts], psi[ts], 0.25, 3)
+    assert np.abs(fast - ref[ts]).max() < 1e-13
+
+
+def test_sink_smeared_site_matches_full_smearing():
+    from rhadron.dirac import wuppertal
+    from rhadron.measure_quark import _sink_smeared_site, _site_series
+    rng = np.random.default_rng(10)
+    U = random_gauge(SHAPE, rng, eps=0.5)
+    S = rng.normal(size=SHAPE + (4, 3, 4, 3)) + 1j * rng.normal(size=SHAPE + (4, 3, 4, 3))
+    x0, tmax = (1, 2, 3, 6), 3
+    full = S.copy()
+    for s0 in range(4):
+        for a0 in range(3):
+            full[..., s0, a0] = wuppertal(U, S[..., s0, a0], 0.25, 2)
+    ref = _site_series(full, x0, tmax)
+    fast = _sink_smeared_site(U, S, x0, tmax, (0.25, 2))
+    assert np.abs(fast - ref).max() < 1e-12
