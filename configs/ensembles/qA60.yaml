@@ -15,3 +15,16 @@ gluelump:
   shapes: [plaq, chair, lplaq]
   tmax: 12
   hyp1_every: 4              # second static action (HYP1) on every 4th config
+quark:                       # M3/M4 valence sector (NP clover, ALPHA c_SW at beta = 6.0)
+  csw: 1.76923
+  kappas: {l1: 0.13344, l2: 0.13417, l3: 0.13455, s: 0.13400}   # UKQCD hep-lat/9910022 kappas; s ~ m_etas
+  light_roles: [l1, l2, l3]
+  link_smear: {alpha: 0.5, n: 10}  # spatial APE links for Wuppertal smearing
+  smear_levels: [[0.25, 30], [0.25, 90]]
+  n_src: 8
+  tmax: 14
+  tol: 1.0e-9
+  maxiter: 3000
+  multigrid: [[4, 4, 4, 4], [2, 2, 2, 2]]
+  static_actions: [HYP2, HYP1]
+  seed: 61

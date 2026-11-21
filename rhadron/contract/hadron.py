@@ -14,6 +14,7 @@ from itertools import permutations
 import numpy as np
 
 from ..gamma import G, G5, P_PLUS
+from ..backend import get_xp
 from ..static import to_adjoint
 from ..operators.quark_ops import NF
 
@@ -22,13 +23,15 @@ PERMS = [(p, int(round(np.linalg.det(np.eye(3)[list(p)])))) for p in permutation
 
 def big_propagators(S_by_flavour, t):
     """Flavour-block-diagonal forward S(t;0) and backward S(0;t) as [NF*12, NF*12] (A = f, s, c)."""
-    fwd = np.zeros((NF, 4, 3, NF, 4, 3), dtype=complex)
-    bwd = np.zeros_like(fwd)
+    xp = get_xp(next(iter(S_by_flavour.values())))
+    g5 = xp.asarray(G5)
+    fwd = xp.zeros((NF, 4, 3, NF, 4, 3), dtype=complex)
+    bwd = xp.zeros_like(fwd)
     for f, S in S_by_flavour.items():
         s = S[t]
         fwd[f, :, :, f] = s
-        sb = np.einsum("st,uatb->sbua", G5, s.conj())  # (S^dag)[s b; u a] with g5 on the left
-        sb = np.einsum("sbua,uv->sbva", sb, G5)
+        sb = xp.einsum("st,uatb->sbua", g5, s.conj())  # (S^dag)[s b; u a] with g5 on the left
+        sb = xp.einsum("sbua,uv->sbva", sb, g5)
         bwd[f, :, :, f] = sb
     n = NF * 12
     return fwd.reshape(n, n), bwd.reshape(n, n)
@@ -36,13 +39,15 @@ def big_propagators(S_by_flavour, t):
 
 def rmeson_block(F, Fbar, S_by_flavour, tmax):
     """B[t, a, b] = -Tr[F^a S(t;0) Fbar^b S(0;t)]  (connected)."""
+    xp = get_xp(F)
     na = F.shape[0]
-    out = np.zeros((tmax + 1, na, Fbar.shape[0]), dtype=complex)
+    out = xp.zeros((tmax + 1, na, Fbar.shape[0]), dtype=complex)
     for t in range(tmax + 1):
         fw, bw = big_propagators(S_by_flavour, t)
-        X = np.einsum("aij,jk->aik", F, fw)  # F^a S(t;0)
-        Y = np.einsum("bkl,li->bki", Fbar, bw)  # Fbar^b S(0;t)
-        out[t] = -np.einsum("aik,bki->ab", X, Y)
+        fw, bw = xp.asarray(fw), xp.asarray(bw)
+        X = xp.matmul(F, fw)  # F^a S(t;0)
+        Y = xp.matmul(Fbar, bw)  # Fbar^b S(0;t)
+        out[t] = -xp.einsum("aik,bki->ab", X, Y)
     return out
 
 
@@ -70,32 +75,34 @@ def rbaryon_block(F, Fbar, S_by_flavour, tmax):
 
 def adjoint_static(W):
     """R(W^dag) for each t: [t, 8, 8]."""
-    return to_adjoint(np.conj(np.swapaxes(W, -1, -2)))
+    return to_adjoint(W.conj().swapaxes(-1, -2))
 
 
 def contract_rmeson(B, W):
-    R = adjoint_static(W)
-    return np.einsum("tab,tab->t", R, B)
+    xp = get_xp(B)
+    R = xp.asarray(adjoint_static(xp.asarray(W)))
+    return xp.einsum("tab,tab->t", R, B)
 
 
 def contract_rbaryon(B, W):
-    R = adjoint_static(W)
-    return np.einsum("tab,tarbs->trs", R, B)
+    xp = get_xp(B)
+    R = xp.asarray(adjoint_static(xp.asarray(W)))
+    return xp.einsum("tab,tarbs->trs", R, B)
 
 
 def static_light(Gamma, S, W):
     """Fundamental static-light meson  C(t) = -Tr[Gamma (P+ W^dag) Gammabar S(0;t)]."""
-    Gbar = G[3] @ Gamma.conj().T @ G[3]
-    out = np.zeros(len(W), dtype=complex)
-    for t in range(len(W)):
-        s = S[t]
-        sb = np.einsum("st,uatb->sbua", G5, s.conj())
-        sb = np.einsum("sbua,uv->sbva", sb, G5)  # S(0;t)[s,b; v,a]
-        Gh = np.einsum("st,ab->satb", P_PLUS, np.conj(W[t]).T)  # P+ x W^dag
-        X = np.einsum("su,uatb->satb", Gamma, Gh)
-        X = np.einsum("satb,tv->savb", X, Gbar)
-        out[t] = -np.einsum("savb,vbsa->", X, sb)
-    return out
+    xp = get_xp(S)
+    Gm = xp.asarray(Gamma)
+    Gbar = xp.asarray(G[3] @ Gamma.conj().T @ G[3])
+    g5, pp = xp.asarray(G5), xp.asarray(P_PLUS)
+    W = xp.asarray(W)
+    sb = xp.einsum("st,xuatb->xsbua", g5, S.conj())
+    sb = xp.einsum("xsbua,uv->xsbva", sb, g5)  # S(0;t)[s,b; v,a]
+    Gh = xp.einsum("st,xba->xsatb", pp, W.conj())  # P+ x W^dag  ([a,b] = conj(W[b,a]))
+    X = xp.einsum("su,xuatb->xsatb", Gm, Gh)
+    X = xp.einsum("xsatb,tv->xsavb", X, Gbar)
+    return -xp.einsum("xsavb,xvbsa->x", X, sb)
 
 
 def flavour_components(F, tol=0.0):
@@ -115,25 +122,24 @@ def flavour_components(F, tol=0.0):
 def rbaryon_block_fast(F, Fbar, S_by_flavour, tmax):
     """Same as rbaryon_block, using flavour components: only permutations sigma with
     f_i == f'_sigma(i) contribute, each a 12-dimensional contraction."""
-    Fc, Fbc = flavour_components(F), flavour_components(Fbar)
-    na, nr = F.shape[:2]
-    nb, ns = Fbar.shape[:2]
-    out = np.zeros((tmax + 1, na, nr, nb, ns), dtype=complex)
+    xp = get_xp(next(iter(S_by_flavour.values())))
+    Fc = {k: xp.asarray(v) for k, v in (F if isinstance(F, dict) else flavour_components(F)).items()}
+    Fbc = {k: xp.asarray(v) for k, v in (Fbar if isinstance(Fbar, dict) else flavour_components(Fbar)).items()}
+    na, nr = next(iter(Fc.values())).shape[:2]
+    nb, ns = next(iter(Fbc.values())).shape[:2]
+    out = xp.zeros((tmax + 1, na, nr, nb, ns), dtype=complex)
     for t in range(tmax + 1):
         P = {f: S[t].reshape(12, 12) for f, S in S_by_flavour.items()}
         for fl, Fa in Fc.items():
-            X = np.tensordot(Fa, P[fl[0]], axes=([2], [0]))
-            X = np.tensordot(X, P[fl[1]], axes=([2], [0]))
-            X = np.tensordot(X, P[fl[2]], axes=([2], [0]))  # [a, r, A', B', C'] at flavours fl
+            X = xp.tensordot(Fa, P[fl[0]], axes=([2], [0]))
+            X = xp.tensordot(X, P[fl[1]], axes=([2], [0]))
+            X = xp.tensordot(X, P[fl[2]], axes=([2], [0]))  # [a, r, A', B', C'] at flavours fl
             for flb, Fb in Fbc.items():
                 for p, sg in PERMS:
                     # source slot i (flavour fl[i]) contracts with sink slot p[i] (flavour flb[p[i]])
                     if any(fl[i] != flb[p[i]] for i in range(3)):
                         continue
                     # X index i pairs with Fb index p[i]:  Fb_perm[..., i] = Fb[..., p[i]]
-                    inv = [0, 0, 0]
-                    for i in range(3):
-                        inv[p[i]] = i
-                    Fbp = np.transpose(Fb, (0, 1) + tuple(2 + p[i] for i in range(3)))
-                    out[t] += sg * np.tensordot(X, Fbp, axes=([2, 3, 4], [2, 3, 4]))
+                    Fbp = xp.transpose(Fb, (0, 1) + tuple(2 + p[i] for i in range(3)))
+                    out[t] += sg * xp.tensordot(X, Fbp, axes=([2, 3, 4], [2, 3, 4]))
     return out

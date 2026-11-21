@@ -134,8 +134,8 @@ def baryon_tensor(colour, flavour, diquark, j, parity=+1, nr=False):
     phi = flavour_tensor(flavour)
     sig = baryon_spin_tensor(diquark, j, parity)
     if nr:
-        sig = np.einsum("rabc,aA,bB,cC->rABC", sig, P_PLUS, P_PLUS, P_PLUS)
-    F = np.einsum("aijk,fgh,rstu->arfsigtjhuk", K, phi, sig)
+        sig = np.einsum("rabc,aA,bB,cC->rABC", sig, P_PLUS, P_PLUS, P_PLUS, optimize=True)
+    F = np.einsum("aijk,fgh,rstu->arfsigtjhuk", K, phi, sig, optimize=True)
     na, nr = K.shape[0], sig.shape[0]
     return F.reshape(na, nr, NF * 12, NF * 12, NF * 12)
 
@@ -146,5 +146,5 @@ def baryon_bar(F):
     na, nr = F.shape[:2]
     Fr = np.conj(F.reshape(na, nr, NF, 4, 3, NF, 4, 3, NF, 4, 3))
     g4 = G[3]
-    Fb = np.einsum("Ss,Tt,Uu,arfsigtjhuk->arfSigTjhUk", g4, g4, g4, Fr)
+    Fb = np.einsum("Ss,Tt,Uu,arfsigtjhuk->arfSigTjhUk", g4, g4, g4, Fr, optimize=True)
     return Fb.reshape(na, nr, NF * 12, NF * 12, NF * 12)

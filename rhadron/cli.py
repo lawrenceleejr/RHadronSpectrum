@@ -134,6 +134,26 @@ def cmd_bench(a):
     json.dump(out, open(os.path.join(a.outdir, "bench.json"), "w"), indent=1)
 
 
+def cmd_measq(a):
+    """Quark-sector measurement on one stored configuration (GPU, QUDA)."""
+    from . import measure_quark
+
+    ens = yaml.safe_load(open(a.ensemble))
+    qcfg = ens["quark"]
+    U, at = io.load_gauge(a.config)
+    cfg_id = int(at.get("cfg", 0)) + 10000 * int(at.get("stream", 0))
+    t0 = time.time()
+    corr, info = measure_quark.run(U, qcfg, cfg_id)
+    os.makedirs(a.outdir, exist_ok=True)
+    name = os.path.basename(a.config).replace(".h5", "_quark.h5")
+    meta = {"ensemble": ens["tag"], "stream": int(at.get("stream", 0)), "cfg": int(at.get("cfg", 0)),
+            "plaq": float(at.get("plaq", 0)), "ens_hash": io.config_hash(ens), "quark_params": qcfg,
+            "sites": json.dumps(info["sites"]), "timings": json.dumps(info["timings"]),
+            "gauge_git_sha": str(at.get("git_sha", "")), "wall_s": time.time() - t0}
+    io.save_h5(os.path.join(a.outdir, name), corr, meta)
+    print(json.dumps(info["timings"]), f"total {time.time() - t0:.0f}s", flush=True)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="rhadron")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -150,8 +170,12 @@ def main(argv=None):
     b.add_argument("--sweeps", type=int, default=3)
     b.add_argument("--outdir", default="out")
     b.add_argument("--cpu", action="store_true")
+    q = sub.add_parser("measq")
+    q.add_argument("--ensemble", required=True)
+    q.add_argument("--config", required=True)
+    q.add_argument("--outdir", default="out")
     a = p.parse_args(argv)
-    {"gen": cmd_gen, "bench": cmd_bench}[a.cmd](a)
+    {"gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq}[a.cmd](a)
 
 
 if __name__ == "__main__":

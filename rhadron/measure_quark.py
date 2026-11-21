@@ -13,7 +13,7 @@ import time
 
 import numpy as np
 
-from .backend import to_numpy
+from .backend import get_xp, to_numpy
 from .contract import hadron, light
 from .gamma import G
 from .operators import quark_ops as qo
@@ -50,7 +50,7 @@ def _site_series(S, x0, tmax):
     x, y, z, t0 = x0
     Lt = S.shape[0]
     idx = [(t0 + t) % Lt for t in range(tmax + 1)]
-    return to_numpy(S[idx, z, y, x])  # [tmax+1, 4, 3, 4, 3]
+    return S[idx, z, y, x].copy()  # [tmax+1, 4, 3, 4, 3] (stays on the device)
 
 
 def run(U_np, qcfg, cfg_id, log=print):
@@ -70,7 +70,7 @@ def run(U_np, qcfg, cfg_id, log=print):
     W = {}
     for a in qcfg["static_actions"]:
         V4 = static_links(U, a)
-        W[a] = [to_numpy(wilson_lines(V4, x0[3], tmax)[:, x0[2], x0[1], x0[0]]) for x0 in sites]
+        W[a] = [wilson_lines(V4, x0[3], tmax)[:, x0[2], x0[1], x0[0]].copy() for x0 in sites]
         del V4
     kappas = qcfg["kappas"]  # dict role -> kappa, roles: l1, l2, l3 (light), s
     roles = list(kappas)
@@ -135,57 +135,55 @@ def _sink_smear(Usm, S, lev):
 
 
 def contract_all(site, sites, W, roles, smears, tmax, qcfg):
-    """All static-site correlators, averaged over sources; matrix over (src level, snk level)."""
+    """All static-site correlators, averaged over sources; matrix [t, snk level, src level].
+    Quark blocks (independent of the static action) are computed once and contracted with every
+    static line in W = {action: [W(source) [t,3,3]]}."""
     nl = len(smears)
-    light_role = qcfg.get("light_roles", [r for r in roles if r != "s"])
+    light_roles = qcfg.get("light_roles", [r for r in roles if r != "s"])
+    acts = list(W)
     corr = {}
-    # light hadrons
     for k, v in site.items():
         if k[0] == "light":
-            corr[f"light/{k[1]}/{k[2]}"] = np.mean(v, axis=0)
-    for act, Wlist in W.items():
-        for isrc, x0 in enumerate(sites):
-            Wt = Wlist[isrc]
-            for lr in light_role:
-                # flavour assignment: u = d = light role lr, s = 's'
-                for fl in MESON_FLAVOURS:
-                    if "s" not in roles and "s" in fl:
-                        continue
-                    for gname, (gams, irrep, jp) in qo.MESON_GAMMAS.items():
-                        key = f"{act}/rmeson/{lr}/{fl}/{gname}"
-                        M = np.zeros((tmax + 1, nl, nl), dtype=complex)
-                        for il in range(nl):
-                            for jl in range(nl):
-                                props = _props(site, lr, isrc, il, jl, roles)
-                                c = 0
-                                for Gam in gams:  # average rows of the irrep
-                                    F = qo.meson_tensor(Gam, qo.flavour_matrix(fl))
-                                    B = hadron.rmeson_block(F, qo.meson_bar(F), props, tmax)
-                                    c = c + hadron.contract_rmeson(B, Wt)
-                                M[:, jl, il] = c / len(gams)
-                        corr[key] = corr.get(key, 0) + M / len(sites)
-                # fundamental static-light (validation, M3)
-                for gname, Gam in (("S_g5", qo.G5), ("Pm_1", qo.ONE), ("Pp_g5gi", qo.G5 @ G[0])):
-                    key = f"{act}/staticlight/{lr}/{gname}"
-                    M = np.zeros((tmax + 1, nl, nl), dtype=complex)
-                    for il in range(nl):
-                        for jl in range(nl):
-                            M[:, jl, il] = hadron.static_light(Gam, site[(lr, isrc, il, jl)], Wt)
-                    corr[key] = corr.get(key, 0) + M / len(sites)
-                for (col, fla, dq, j) in BARYONS:
-                    if "s" not in roles and ("uds" in fla):
-                        continue
-                    F = qo.baryon_tensor(col, fla, dq, j, nr=True)
-                    Fb = qo.baryon_bar(F)
-                    key = f"{act}/rbaryon/{lr}/{col}_{fla}_{dq}_{j.replace('/', 'o')}"
-                    M = np.zeros((tmax + 1, nl, nl), dtype=complex)
-                    for il in range(nl):
-                        for jl in range(nl):
-                            props = _props(site, lr, isrc, il, jl, roles)
-                            B = hadron.rbaryon_block_fast(F, Fb, props, tmax)
-                            Cb = hadron.contract_rbaryon(B, Wt)
-                            M[:, jl, il] = np.einsum("trr->t", Cb) / Cb.shape[1]
-                    corr[key] = corr.get(key, 0) + M / len(sites)
+            corr[f"light/{k[1]}/{k[2]}"] = np.mean([to_numpy(x) for x in v], axis=0)
+    xp = get_xp(next(iter(v for k, v in site.items() if k[0] != "light")))
+    mes_ops = {}
+    for fl in MESON_FLAVOURS:
+        if "s" in fl and "s" not in roles:
+            continue
+        for gname, (gams, irrep, jp) in qo.MESON_GAMMAS.items():
+            Fs = [qo.meson_tensor(Gm, qo.flavour_matrix(fl)) for Gm in gams]
+            mes_ops[(fl, gname)] = [(xp.asarray(F), xp.asarray(qo.meson_bar(F))) for F in Fs]
+    bar_ops = {}
+    for op in BARYONS:
+        if "uds" in op[1] and "s" not in roles:
+            continue
+        F = qo.baryon_tensor(*op, nr=True)
+        bar_ops[op] = (hadron.flavour_components(F), hadron.flavour_components(qo.baryon_bar(F)))
+
+    def acc(key, il, jl, c):
+        M = corr.setdefault(key, np.zeros((tmax + 1, nl, nl), dtype=complex))
+        M[:, jl, il] += to_numpy(c) / len(sites)
+
+    for isrc in range(len(sites)):
+        for lr in light_roles:
+            for il in range(nl):
+                for jl in range(nl):
+                    props = _props(site, lr, isrc, il, jl, roles)
+                    for (fl, gname), FF in mes_ops.items():
+                        Bs = [hadron.rmeson_block(F, Fb, props, tmax) for F, Fb in FF]
+                        for a in acts:
+                            c = sum(hadron.contract_rmeson(B, W[a][isrc]) for B in Bs) / len(Bs)
+                            acc(f"{a}/rmeson/{lr}/{fl}/{gname}", il, jl, c)
+                    for gname, Gam in (("S_g5", qo.G5), ("Pm_1", qo.ONE), ("Pp_g5gi", qo.G5 @ G[0])):
+                        for a in acts:
+                            c = hadron.static_light(Gam, site[(lr, isrc, il, jl)], W[a][isrc])
+                            acc(f"{a}/staticlight/{lr}/{gname}", il, jl, c)
+                    for op, (F, Fb) in bar_ops.items():
+                        B = hadron.rbaryon_block_fast(F, Fb, props, tmax)
+                        name = f"{op[0]}_{op[1]}_{op[2]}_{op[3].replace('/', 'o')}"
+                        for a in acts:
+                            Cb = hadron.contract_rbaryon(B, W[a][isrc])
+                            acc(f"{a}/rbaryon/{lr}/{name}", il, jl, xp.einsum("trr->t", Cb) / Cb.shape[1])
     return corr
 
 
