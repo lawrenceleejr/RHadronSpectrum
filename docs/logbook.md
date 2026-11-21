@@ -63,3 +63,19 @@ Decisions taken from it:
   qA57 DAGMan 43200189 (10 streams, MAXJOBS 4), qA60 43200191 (10 streams, MAXJOBS 8),
   qA62 43200192 (16 streams, MAXJOBS 8, cc >= 7.0 and >= 15 GB).
 - Eviction-resume test postponed to a production qA60 job (toy segments too short to vacate mid-run).
+
+## 2026-11-21 — M1 gate passed
+
+- `pytest tests/unit` on code c9f2969: **58 passed** (CPU, 4³×8; 60 min on the
+  contended AP). Covers: SU(3)/projection, gauge covariance of APE/stout/HYP, U_adj ∈ SO(8) with
+  Tr U_adj = |Tr U|² − 1, O_h irreps (homomorphism, character orthonormality), row projectors
+  idempotent/orthogonal/complete on every shape orbit, gluelump production == reference (1e-10) and
+  gauge invariant (1e-12 unsmeared), streamed measure == full, R-meson / R-baryon production ==
+  explicit Wick reference (1e-10), fast flavour-decomposed R-baryon == general tensor, gauge
+  invariance of R-meson / R-baryon / static-light, colour-octet property of K^a, SU(6) Pauli pattern
+  for NR operators ((10,3/2), (1,3/2) vanish; (8,½), (10,½), (1,½), (8,3/2) nonzero; colour-singlet
+  56 check), exact diquark Pauli zero, production R-baryon list nonvanishing, fast nucleon == general,
+  pion positivity.
+- Eviction test (qA60 stream 8, job 43202007, vacated 05:03 UTC at sweep 410): spooled checkpoint
+  at sweep 400 found in the job spool; resume confirmation pending job completion.
+  Plaquette β=6.0, 24³×48: 0.5933–0.5938 (literature 0.593738(17)).
