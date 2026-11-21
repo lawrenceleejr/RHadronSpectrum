@@ -3,7 +3,7 @@
 set -euo pipefail
 QUDA_SHA=${QUDA_SHA:-af7e15080e247795ef076b6d9284478755a9a683}
 ARCHS=${ARCHS:-"70-real;75-real;80-real;86-real;89-real;90-real;90-virtual"}
-JOBS=${JOBS:-32}
+JOBS=${JOBS:-48}
 mkdir -p /opt/build && cd /opt/build
 git clone https://github.com/lattice/quda.git quda-src
 cd quda-src && git checkout "$QUDA_SHA"

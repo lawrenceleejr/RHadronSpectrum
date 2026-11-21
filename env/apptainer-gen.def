@@ -4,6 +4,7 @@ From: nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
 %environment
     export PYTHONNOUSERSITE=1
+    export CUPY_CACHE_DIR=${TMPDIR:-/tmp}/cupy_cache
 
 %post
     export DEBIAN_FRONTEND=noninteractive
@@ -14,6 +15,7 @@ From: nvidia/cuda:12.4.1-runtime-ubuntu22.04
     python3 -m pip install --no-cache-dir "numpy<2.1" scipy h5py pyyaml cupy-cuda12x
 
 %test
+    export CUPY_CACHE_DIR=/tmp/cupy_cache_test
     python3 -c "import numpy, cupy, h5py, yaml; print('ok')"
 
 %labels
