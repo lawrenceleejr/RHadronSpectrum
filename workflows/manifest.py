@@ -223,7 +223,7 @@ transfer_input_files = $(INPUTS)
 transfer_output_files = out
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_gpus = 1
-request_cpus = 2
+request_cpus = 1
 periodic_release = (HoldReasonCode == 13 || HoldReasonCode == 12) && (NumJobStarts < 6)
 log = {dagdir}/logs/quark.log
 output = {dagdir}/logs/$(NODE).out
@@ -269,8 +269,8 @@ def main():
     qd.add_argument("ensemble")
     qd.add_argument("--image-quda", required=True)
     qd.add_argument("--image-gen", required=True)
-    qd.add_argument("--gpureq", default="(Capability >= 7.0) && (GlobalMemoryMb >= 15000)")
-    qd.add_argument("--mem", default="16GB")
+    qd.add_argument("--gpureq", default="(Capability >= 7.0) && (GlobalMemoryMb >= 20000)")  # CuPy pool peaks ~22 GB
+    qd.add_argument("--mem", default="8GB")
     qd.add_argument("--disk", default="12GB")
     qd.add_argument("--maxjobs", type=int, default=20)
     qd.add_argument("--every", type=int, default=1, help="use every n-th configuration")
