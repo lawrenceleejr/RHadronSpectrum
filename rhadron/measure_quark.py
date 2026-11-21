@@ -239,8 +239,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
     done = {}
     if _os.path.exists(outpath):
         with h5py.File(outpath, "r") as f:
-            for k in f:
-                done[k] = f[k][...]
+            f.visititems(lambda name, obj: done.__setitem__(name, obj[...]) if isinstance(obj, h5py.Dataset) else None)
     t_all = time.time()
 
     def lap(msg, t):
@@ -315,7 +314,9 @@ def contract_from_files(U_np, qcfg, role_files, log=print):
             role = str(f.attrs["role"])
             roles.append(role)
             sites = _json.loads(f.attrs["sites"])
-            for k in f:
+            keys = []
+            f.visititems(lambda name, obj: keys.append(name) if isinstance(obj, h5py.Dataset) else None)
+            for k in keys:
                 src, name = k.split("/")
                 isrc = int(src[3:])
                 if name.startswith("S_"):
