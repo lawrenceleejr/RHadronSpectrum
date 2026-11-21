@@ -103,3 +103,13 @@ Decisions taken from it:
   (results/visuals, paper/figures).
 - measq single-job design abandoned (benchmark jobs ran > 3 h with no output, no eviction spool);
   replaced by resumable per-role solve jobs + per-config contraction job (timing test 43207076).
+
+## 2026-11-21 — M0 gate passed
+
+- GPU stack: QUDA == CPU reference propagator (9.9e-14), plaquette identical (job 43204512.0, H100).
+- Pion correlator smoke test (qA60_s0_c0003, one source, cluster 43207478): positive; a·m_eff at
+  t = 8-10: 0.42 (κ = 0.13344) and 0.24-0.29 (κ = 0.13455) vs UKQCD 0.395 / 0.246 — consistent at
+  one-configuration noise.  MG and BiCGStab propagators give identical correlators.
+- Wuppertal smearing rewritten (timeslice-restricted, batched): one smeared source 380-850 s → 5-26 s.
+- Solver choice β = 6.0: mixed BiCGStab (no MG); budget docs/budget.md: total A+B ≈ 3.5-4.5k GPU-h
+  ≪ 20k ceiling → delegated budget gate passed.
