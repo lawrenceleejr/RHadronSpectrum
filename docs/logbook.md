@@ -151,3 +151,13 @@ Decisions taken from it:
 - Quark test DAG: solve jobs OK (~4 min per κ on A100 after fp32 smearing); contraction failed on
   HDF5 group iteration (fixed, rescue DAG 43214627).  Resource request lowered (8 GB, 1 CPU,
   GPU ≥ 20 GB) after better-analyze showed a single matching slot.
+
+## 2026-11-21 — Quark chain validated; M3 production started (β = 6.0)
+
+- Test DAG (4 cfgs × 4 κ): solve ~4 min per κ (A100), contraction 3 min per config (GPU).
+  4-config pion l1: a·m_eff = 0.39-0.40 at t = 7-13 (UKQCD 0.3952 / 0.3977); static-light positive.
+  R-hadron channels not inspected (blinded).
+- M3 production: every 4th qA60 configuration (DAGMan below), same solves feed M4.
+- Density (three-point) contraction for the final visualisation will be added before Stage B
+  production (where the final physics and the "lightest state" picture come from); quenched solves
+  are not repeated for it.
