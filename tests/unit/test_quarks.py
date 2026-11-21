@@ -156,3 +156,28 @@ def test_static_light_gauge_invariant(cfg):
     C = hadron.static_light(qo.G5, S, W)
     Cg = hadron.static_light(qo.G5, Sg, Wg)
     assert np.abs(C - Cg).max() < 1e-8 * np.abs(C).max()
+
+
+def test_nucleon_fast_matches_general_tensor(cfg):
+    """Fast zero-momentum nucleon contraction (single sink site) == general antisymmetrised-tensor
+    contraction with colour-singlet eps (u^T C g5 d) P+ u, up to the 1/6 colour normalisation."""
+    from rhadron.contract import light
+    _, _, (S, W), _ = cfg
+    T = S.shape[0]
+    Cfast = light.nucleon(S.reshape(T, 1, 1, 1, 4, 3, 4, 3))
+    F = np.zeros((1, 4, 36, 36, 36), dtype=complex)
+    Fn = light.nucleon_tensor()  # [4, 12, 12, 12] slots (u, d, u)
+    F[0, :, 0:12, 12:24, 0:12] = Fn
+    Fb = qo.baryon_bar(F)
+    B = hadron.rbaryon_block(F, Fb, props(S, (0, 1)), T - 1)
+    Cgen = np.einsum("trr->t", B[:, 0, :, 0, :])
+    assert np.abs(Cfast - Cgen).max() < 1e-10 * np.abs(Cgen).max()
+
+
+def test_pion_positive(cfg):
+    from rhadron.contract import light
+    _, _, (S, W), _ = cfg
+    T = S.shape[0]
+    C = light.meson(S.reshape(T, 1, 1, 1, 4, 3, 4, 3), qo.G5)
+    assert np.allclose(C.imag, 0, atol=1e-12 * np.abs(C).max()) and np.all(C.real > 0)
+    assert np.allclose(C.real, np.einsum("tsaub->t", np.abs(S.reshape(T, 4, 3, 4, 3)) ** 2))
