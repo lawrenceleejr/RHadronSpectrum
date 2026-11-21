@@ -113,3 +113,5 @@ Decisions taken from it:
 - Wuppertal smearing rewritten (timeslice-restricted, batched): one smeared source 380-850 s → 5-26 s.
 - Solver choice β = 6.0: mixed BiCGStab (no MG); budget docs/budget.md: total A+B ≈ 3.5-4.5k GPU-h
   ≪ 20k ceiling → delegated budget gate passed.
+- Eviction-resume test **passed**: qA60 stream 8 (job 43202007) vacated at sweep 410, restarted on a
+  new node and logged "resume from out/qA60_s8_ckpt.h5 at sweep 400".
