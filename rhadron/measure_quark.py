@@ -242,10 +242,20 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             for k in f:
                 done[k] = f[k][...]
     t_all = time.time()
+
+    def lap(msg, t):
+        cp.cuda.Device().synchronize()
+        log(f"[{role}] {msg}: {time.time() - t:.1f}s", flush=True)
+        return time.time()
+
+    t = time.time()
     li = Q.init([Lx, Ly, Lz, Lt])
+    t = lap("quda init", t)
     gauge = Q.to_quda_gauge(li, U_np)
+    t = lap("gauge to quda layout", t)
     U = cp.asarray(U_np)
     Usm = ape_spatial(U, qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
+    t = lap("APE link smearing", t)
     t0 = time.time()
     d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
                      multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
@@ -259,13 +269,17 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             Ssrc = _solve_smeared_source(Q, li, d, Usm, x0, lev)
             cp.cuda.Device().synchronize()
             log(f"[{role}] src {isrc} level {il}: 12 solves {time.time() - t1:.1f}s", flush=True)
+            t = time.time()
             for jl, lev2 in enumerate(smears):
                 done[f"src{isrc}/S_{il}_{jl}"] = to_numpy(_sink_smeared_site(Usm, Ssrc, x0, tmax, lev2))
+            t = lap("sink smearing", t)
             if il == 0:
                 done[f"src{isrc}/light_pi"] = to_numpy(light.meson(Ssrc, qo.G5, t0=x0[3]))
                 done[f"src{isrc}/light_rho"] = to_numpy(sum(light.meson(Ssrc, G[i], t0=x0[3]) for i in range(3)) / 3)
                 done[f"src{isrc}/light_a0"] = to_numpy(light.meson(Ssrc, qo.ONE, t0=x0[3]))
+                t = lap("light mesons", t)
                 done[f"src{isrc}/light_N"] = to_numpy(light.nucleon(Ssrc, t0=x0[3]))
+                t = lap("nucleon", t)
             del Ssrc
         tmp = outpath + ".tmp"
         with h5py.File(tmp, "w") as f:
