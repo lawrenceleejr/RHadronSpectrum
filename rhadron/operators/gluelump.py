@@ -110,3 +110,52 @@ def correlators(ops, V4, tmax, t0_list=None):
         c = out[k] / nrm
         out[k] = 0.5 * (c + c.swapaxes(1, 2))
     return out
+
+
+def _slice_ops(V_levels, t, shapes, dtype):
+    """Operators on timeslice t only: dict key -> [n_op, row, z, y, x, 8]."""
+    ops, labels = build_operators([V[:, t:t + 1] for V in V_levels], shapes=shapes, dtype=dtype)
+    return {k: o[:, :, 0] for k, o in ops.items()}, labels
+
+
+def measure(V_levels, V4_by_action, tmax, shapes=None, dtype=np.float32):
+    """Production gluelump correlators streamed over timeslices (memory ~ (tmax+1) slices of ops).
+
+    V_levels: spatially smeared link fields (list, one per smearing level).
+    V4_by_action: {'HYP2': V4, ...} temporal links for the static line(s).
+    Returns ({action: {key: C[t, i, j]}}, labels).  Normalised per site, source time and row.
+    """
+    xp = get_xp(V_levels[0])
+    Lt = V_levels[0].shape[1]
+    cache, labels = {}, None
+    out = {a: {} for a in V4_by_action}
+    nsite = None
+    for t0 in range(Lt):
+        for t in list(cache):
+            if (t - t0) % Lt > tmax:
+                del cache[t]
+        for dt in range(tmax + 1):
+            t1 = (t0 + dt) % Lt
+            if t1 not in cache:
+                cache[t1], labels = _slice_ops(V_levels, t1, shapes, dtype)
+        src = cache[t0]
+        for act, V4 in V4_by_action.items():
+            W = xp.broadcast_to(xp.eye(3, dtype=V4.dtype), V4.shape[1:]).copy()
+            for dt in range(tmax + 1):
+                if dt > 0:
+                    W = mul(W, V4[(t0 + dt - 1) % Lt])
+                R = to_adjoint(dag(W))
+                snk = cache[(t0 + dt) % Lt]
+                for k in src:
+                    s = xp.einsum("zyxab,irzyxb->irzyxa", R, src[k].astype(np.float64))
+                    c = xp.einsum("irzyxa,jrzyxa->ij", snk[k].astype(np.float64), s)
+                    acc = out[act].setdefault(k, xp.zeros((tmax + 1,) + c.shape))
+                    acc[dt] += c
+                nsite = R.shape[0] * R.shape[1] * R.shape[2]
+    res = {}
+    for act in out:
+        res[act] = {}
+        for k, c in out[act].items():
+            c = c / (Lt * nsite * dim(k[0]))
+            res[act][k] = 0.5 * (c + c.swapaxes(1, 2))
+    return res, labels

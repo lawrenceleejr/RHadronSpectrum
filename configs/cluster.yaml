@@ -1,0 +1,39 @@
+# HTCondor pool facts, verified on 2026-11-20 from ap23.uc.osg-htc.org (see docs/logbook.md).
+pool: OSPool (OSG), opportunistic
+submit_host: ap23.uc.osg-htc.org
+scheduler: HTCondor 25.13.3
+shared_filesystem_on_execute_nodes: false      # use HTCondor file transfer + OSDF
+osdf:
+  origin_path: /ospool/uc-shared/project/futurecolliders/llee/rhadron   # visible on the AP (CephFS)
+  url_prefix: osdf:///ospool/uc-shared/project/futurecolliders/llee/rhadron
+  note: user area /ospool/ap23/data/llee does not exist; project area used (as for prior OSPool work)
+ap_scratch: /scratch/llee/rhadron            # 277 TB tank, 251 TB free; not visible on execute nodes
+home_quota_note: /home is NFS (3 TB free shared); keep large data off /home
+max_transfer_input_mb: 5000                    # MAX_TRANSFER_INPUT_MB on ap23
+max_transfer_output_mb: unlimited
+containers: Apptainer 1.5.5 on AP; OSPool supports container_image (.sif from OSDF)
+image: rhadron-v1.sif  (env/apptainer.def; CUDA 12.4, QUDA fat binary sm_70..sm_90 + compute_90 PTX)
+gpus:   # condor_status -constraint 'GPUs > 0', 2026-11-20 snapshot (slots, memory MB, capability)
+  - {model: RTX 2080 Ti, n: 31, mem_mb: 10823, cc: 7.5}
+  - {model: Tesla P4, n: 29, mem_mb: 7599, cc: 6.1}
+  - {model: RTX 3090, n: 23, mem_mb: 24134, cc: 8.6}
+  - {model: A40, n: 21, mem_mb: 45541, cc: 8.6}
+  - {model: RTX A5000, n: 12, mem_mb: 24361, cc: 8.6}
+  - {model: GTX 1080 Ti, n: 11, mem_mb: 11165, cc: 6.1}
+  - {model: V100 16GB, n: 10, mem_mb: 16144, cc: 7.0}
+  - {model: A100 40/80GB, n: 12, mem_mb: 40471-81156, cc: 8.0}
+  - {model: T4, n: 6, mem_mb: 14927, cc: 7.5}
+  - {model: L40/L40S, n: 11, mem_mb: 45458-45589, cc: 8.9}
+  - {model: H100 (PCIe/SXM/NVL), n: 9, mem_mb: 81081-95312, cc: 9.0}
+  - {model: RTX 3060, n: 3, mem_mb: 11909, cc: 8.6}
+  - {model: RTX PRO 6000 Blackwell, n: 1, mem_mb: 48944, cc: 12.0}
+  total_gpu_slots: ~185 (most claimed at any time; opportunistic)
+gpu_driver_cuda_versions: [12.4, 12.6, 12.8, 13.0, 13.2, 13.3, 13.4]
+job_requirements:
+  gpu: 'request_gpus = 1; require_gpus = (Capability >= 7.0) && (GlobalMemoryMb >= 15000)'
+  runtime_target_hours: [1, 4]   # OSPool guidance; jobs can be evicted at any time
+  preemption: glideins retire/evict without notice -> all tasks idempotent, checkpoint per batch
+per_user_gpu_quota: none fixed (fair-share); throttle with DAGMan MAXJOBS
+cpu_jobs: abundant; quenched generation and gluelump measurements run as CPU jobs (no solves)
+accounting_group: default (none required on ap23)
+gpu_hour_budget: 20000   # delegated ceiling from the user for Stages A+B

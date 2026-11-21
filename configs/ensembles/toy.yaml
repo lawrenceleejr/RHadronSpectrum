@@ -1,0 +1,17 @@
+# Toy ensemble for end-to-end tests (PLAN §6): 8^3 x 16 quenched, beta = 5.7.
+tag: toy
+action: wilson_plaquette
+beta: 5.7
+shape: [16, 8, 8, 8]
+n_or: 2
+n_therm: 10
+n_sep: 5
+target_configs: 8
+seed: 7
+save_configs: true
+gluelump:
+  ape_alpha: 0.5
+  ape_levels: [2, 5]
+  shapes: [plaq, chair, lplaq]
+  tmax: 6
+  hyp1_every: 2

@@ -1,0 +1,17 @@
+# Stage A quenched ensemble (Wilson plaquette action), self-generated with heatbath + over-relaxation.
+tag: qA62
+action: wilson_plaquette
+beta: 6.2
+shape: [64, 32, 32, 32]      # (Lt, Lz, Ly, Lx)
+n_or: 4                      # compound sweep = 1 heatbath + 4 over-relaxation
+n_therm: 700                  # compound sweeps discarded per stream
+n_sep: 40                    # compound sweeps between saved configurations
+target_configs: 512
+seed: 32044
+save_configs: true
+gluelump:
+  ape_alpha: 0.5
+  ape_levels: [18, 45]
+  shapes: [plaq, chair, lplaq]
+  tmax: 16
+  hyp1_every: 4              # second static action (HYP1) on every 4th config

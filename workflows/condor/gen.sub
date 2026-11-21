@@ -1,0 +1,26 @@
+# Quenched generation segment (+ fused gluelump measurement).  Variables from the DAG:
+#   TAG STREAM UNTIL INPUTS IWD GPUREQ MEM DISK IMAGE
+universe                 = vanilla
+container_image          = $(IMAGE)
+executable               = wrapper.sh
+arguments                = gen --ensemble ens.yaml --stream $(STREAM) --until $(UNTIL) $(STARTARG) --outdir out
+initialdir               = $(IWD)
+transfer_executable      = true
+should_transfer_files    = YES
+transfer_input_files     = $(INPUTS)
+transfer_output_files    = out
+when_to_transfer_output  = ON_EXIT_OR_EVICT
+request_gpus             = 1
+require_gpus             = $(GPUREQ)
+request_cpus             = 1
+request_memory           = $(MEM)
+request_disk             = $(DISK)
++JobDurationCategory     = "Medium"
+max_retries              = 5
+success_exit_code        = 0
+on_exit_hold             = (ExitCode =!= 0) && (NumJobStarts >= 5)
+periodic_release         = (HoldReasonCode == 13 || HoldReasonCode == 12) && (NumJobStarts < 6)
+log                      = $(IWD)/logs/$(TAG)_s$(STREAM).log
+output                   = $(IWD)/logs/$(TAG)_s$(STREAM)_u$(UNTIL).out
+error                    = $(IWD)/logs/$(TAG)_s$(STREAM)_u$(UNTIL).err
+queue
