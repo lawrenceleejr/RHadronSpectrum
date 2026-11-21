@@ -165,6 +165,83 @@ queue
     print(dag, f"{n} configurations")
 
 
+def quark_dag(a):
+    """Quark production DAG: per stored configuration, one resumable `solve` node per kappa role
+    (GPU, QUDA image) and a `contract` node (GPU, CuPy) depending on all of them.  Configurations
+    whose *_quark.h5 exists are skipped; partial propagator files are fed back via --resume."""
+    import glob as _glob
+
+    ens = yaml.safe_load(open(a.ensemble))
+    tag = ens["tag"]
+    base = os.path.join(DATA, tag)
+    dagdir = os.path.join(base, "quark_dag")
+    qdir = os.path.join(base, "quark")
+    os.makedirs(os.path.join(dagdir, "logs"), exist_ok=True)
+    os.makedirs(qdir, exist_ok=True)
+    sha = code_tarball(os.path.join(dagdir, "code.tar.gz"))
+    shutil.copy(a.ensemble, os.path.join(dagdir, "ens.yaml"))
+    shutil.copy(os.path.join(HERE, "wrapper.sh"), dagdir)
+    roles = list(ens["quark"]["kappas"])
+    cfgs = sorted(_glob.glob(os.path.join(base, "s*", "out", f"{tag}_s*_c[0-9][0-9][0-9][0-9].h5")))
+    if a.every > 1:
+        cfgs = [c for c in cfgs if int(c[-7:-3]) % a.every == 0]
+    if a.limit:
+        cfgs = cfgs[: a.limit]
+    lines = [f"# {tag} quark production; code {sha}; roles {roles}", f"CONFIG {dagdir}/dagman.config"]
+    n = 0
+    for c in cfgs:
+        name = os.path.basename(c)[:-3]
+        if os.path.exists(os.path.join(qdir, "out", name + "_quark.h5")):
+            continue
+        props = []
+        for r in roles:
+            node = f"s_{name}_{r}"
+            prop = os.path.join(qdir, "out", f"{name}_prop_{r}.h5")
+            props.append(prop)
+            inputs = [os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml"), c]
+            resume = ""
+            if os.path.exists(prop):
+                inputs.append(prop)
+                resume = f"--resume {os.path.basename(prop)}"
+            lines.append(f"JOB {node} {dagdir}/solve.sub")
+            lines.append(f'VARS {node} NODE="{node}" INPUTS="{",".join(inputs)}" '
+                         f'ARGS="solve --ensemble ens.yaml --config {os.path.basename(c)} --role {r} {resume} --outdir out"')
+            lines.append(f"RETRY {node} 3")
+        cnode = f"c_{name}"
+        lines.append(f"JOB {cnode} {dagdir}/contract.sub")
+        lines.append(f'VARS {cnode} NODE="{cnode}" INPUTS="{",".join([os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml"), c] + props)}" '
+                     f'ARGS="contract --ensemble ens.yaml --config {os.path.basename(c)} --props {" ".join(os.path.basename(p) for p in props)} --outdir out"')
+        lines.append(f"RETRY {cnode} 3")
+        lines.append(f"PARENT {' '.join(f's_{name}_{r}' for r in roles)} CHILD {cnode}")
+        n += 1
+    common = f"""universe = vanilla
+executable = {dagdir}/wrapper.sh
+arguments = $(ARGS)
+initialdir = {qdir}
+should_transfer_files = YES
+transfer_input_files = $(INPUTS)
+transfer_output_files = out
+when_to_transfer_output = ON_EXIT_OR_EVICT
+request_gpus = 1
+request_cpus = 2
+periodic_release = (HoldReasonCode == 13 || HoldReasonCode == 12) && (NumJobStarts < 6)
+log = {dagdir}/logs/quark.log
+output = {dagdir}/logs/$(NODE).out
+error = {dagdir}/logs/$(NODE).err
+"""
+    open(os.path.join(dagdir, "solve.sub"), "w").write(
+        common + f"container_image = {a.image_quda}\nrequire_gpus = {a.gpureq}\nrequest_memory = {a.mem}\n"
+                 f"request_disk = {a.disk}\nqueue\n")
+    open(os.path.join(dagdir, "contract.sub"), "w").write(
+        common + f"container_image = {a.image_gen}\nrequire_gpus = (Capability >= 6.0) && (GlobalMemoryMb >= 7000)\n"
+                 f"request_memory = {a.mem}\nrequest_disk = {a.disk}\nqueue\n")
+    open(os.path.join(dagdir, "dagman.config"), "w").write(
+        f"DAGMAN_MAX_JOBS_SUBMITTED = {a.maxjobs}\nDAGMAN_MAX_JOBS_IDLE = {a.maxjobs}\n")
+    dag = os.path.join(dagdir, f"{tag}_quark.dag")
+    open(dag, "w").write("\n".join(lines) + "\n")
+    print(dag, f"{n} configurations x {len(roles)} roles")
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -188,10 +265,20 @@ def main():
     gd.add_argument("--mem", default="8GB")
     gd.add_argument("--disk", default="10GB")
     gd.add_argument("--maxjobs", type=int, default=10)
+    qd = sub.add_parser("quark")
+    qd.add_argument("ensemble")
+    qd.add_argument("--image-quda", required=True)
+    qd.add_argument("--image-gen", required=True)
+    qd.add_argument("--gpureq", default="(Capability >= 7.0) && (GlobalMemoryMb >= 15000)")
+    qd.add_argument("--mem", default="16GB")
+    qd.add_argument("--disk", default="12GB")
+    qd.add_argument("--maxjobs", type=int, default=20)
+    qd.add_argument("--every", type=int, default=1, help="use every n-th configuration")
+    qd.add_argument("--limit", type=int, default=0)
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
     a = p.parse_args()
-    {"gen": gen_dag, "glue": glue_dag, "refresh-code": refresh_code}[a.cmd](a)
+    {"gen": gen_dag, "glue": glue_dag, "quark": quark_dag, "refresh-code": refresh_code}[a.cmd](a)
 
 
 if __name__ == "__main__":
