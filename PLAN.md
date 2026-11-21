@@ -85,7 +85,8 @@ Consequences for this project:
 - Only differences are comparable (the "constituent gluino mass" and the lattice δm are
   both unphysical offsets). The headline comparison is, per §1.4, the lattice values of
   Λ̄(g̃g) − Λ̄(g̃qq̄), Λ̄(g̃uds) − Λ̄(g̃qq̄), Λ̄(g̃sq̄) − Λ̄(g̃qq̄) against the
-  model's ranges [−0.017, +0.297], [−0.12, 0.00] (same-set differences), [+0.17, +0.22] GeV.
+  model's same-mass-set differences [−0.017, +0.297], [−0.12, 0.00] (but +0.50 with the
+  Pythia6 column), [+0.16, +0.22] GeV.
 - Deliverable addition: a drop-in table of lattice-based offsets keyed by these PDG IDs
   (normalised so the lightest R-meson matches the model's convention, stated explicitly),
   plus the lattice-implied charged/neutral/gluinoball composition inputs, so the result
