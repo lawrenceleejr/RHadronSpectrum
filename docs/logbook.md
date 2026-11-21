@@ -115,3 +115,22 @@ Decisions taken from it:
   ≪ 20k ceiling → delegated budget gate passed.
 - Eviction-resume test **passed**: qA60 stream 8 (job 43202007) vacated at sweep 410, restarted on a
   new node and logged "resume from out/qA60_s8_ckpt.h5 at sweep 400".
+
+## 2026-11-21 — ANOMALY found and fixed: non-deterministic gluelump operator basis
+
+- Symptom: binning study at β=5.7 showed jackknife errors of the GEVP-projected T1g⁻ correlator
+  growing like √(bin size) with no plateau, while the raw plaquette-operator correlator had
+  negligible autocorrelation (lag-1 ≤ 0.15) and consistent stream means.
+- Diagnosis: operators with multiplicity > 1 in an irrep (chair: 2, L-loop: 3) had their basis
+  inside the degenerate subspace taken from `numpy.linalg.eigh`, which is arbitrary and differed
+  between execution environments: first-segment files have the two chair T1g⁻ operators swapped
+  relative to later segments (C(0) = 0.14 ↔ 4.2; subspace trace preserved 4.38 vs 4.27).
+  Re-measuring a first-segment configuration on the AP with the same code reproduced the
+  later-segment basis.  Averaging matrices in different bases over configurations is invalid.
+- Fix (c7187ab): `canonical_basis` (Gram–Schmidt on projected unit vectors in fixed order, sign
+  fixed) — platform independent; tests added.  Generation DAG code refreshed.
+- Data repair: all gluelump files produced before c7187ab are re-measured from the stored
+  configurations (`rhadron glue`, `manifest.py glue --good-since c7187ab`): qA57 DAGMan 43207588
+  (902 cfgs), qA60 43207589 (184), qA62 43207590 (3).  Files from segments still running old code
+  will be caught by a second re-measurement pass.  No physics result had been derived from the
+  affected data (the earlier effective-mass overlay is superseded).
