@@ -110,9 +110,61 @@ if __name__ == "__main__":
         print(p)
 
 
+def good_files(tag, fix="c7187ab"):
+    import subprocess
+
+    import h5py
+    out = []
+    for f in sorted(glob.glob(f"{DATA}/{tag}/s*/out/{tag}_s*_c*_glue.h5")):
+        sha = str(h5py.File(f, "r").attrs.get("git_sha", ""))
+        if subprocess.run(["git", "merge-base", "--is-ancestor", fix, sha], capture_output=True).returncode == 0:
+            out.append(f)
+    return out
+
+
+def level_diagram_from_json(path, tag, r0a, beta):
+    import json
+    res = json.load(open(path))
+    fig, ax = plt.subplots(figsize=(4.6, 3.2))
+    order = ["T1g-", "T1u-", "T2u-", "Eu-", "T2g-", "Eg-", "A2g-", "A1g+", "Eg+", "T2u+"]
+    names = {"T1g-": "$1^{+-}$", "T1u-": "$1^{--}$", "T2u-": "$2^{--}$", "Eu-": "$2^{--}$",
+             "T2g-": "$2^{+-}$", "Eg-": "$2^{+-}$", "A2g-": "$3^{+-}$", "A1g+": "$0^{++}$",
+             "Eg+": "$2^{++}$", "T2u+": "$2^{-+}$"}
+    xs, ys = [], []
+    for i, k in enumerate([k for k in order if res["channels"].get(k, {}).get("ok")]):
+        c = res["channels"][k]
+        y = r0a * c["a_dE"]
+        dy = r0a * float(np.hypot(c["a_dE_stat"], c["a_dE_syst"]))
+        ax.add_patch(plt.Rectangle((i - 0.32, y - dy), 0.64, 2 * dy, color=INK, alpha=0.15, lw=0))
+        ax.plot([i - 0.32, i + 0.32], [y, y], color=INK, lw=1.2)
+        ax.annotate(names[k], (i, y + dy), xytext=(0, 2), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=7)
+        xs.append(i)
+        ys += [y - dy, y + dy]
+    hsw, dhsw = 0.87, 0.09  # Herr-Schlosser-Wagner continuum 1-- - 1+- (r0 = 0.5 fm), docs/references.md
+    ax.plot([0.68, 1.32], [hsw, hsw], color=ACC, lw=0.8, ls=(0, (3, 2)))
+    ax.annotate("continuum lit.", (1.32, hsw), xytext=(3, 0), textcoords="offset points", fontsize=6, color=ACC,
+                va="center")
+    ks = [k for k in order if res["channels"].get(k, {}).get("ok")]
+    ax.set_xticks(range(len(ks)))
+    ax.set_xticklabels([f"{k[:-1]}{k[-1]}" for k in ks], fontsize=6, rotation=0)
+    ax.tick_params(axis="x", length=0)
+    ax.set_ylabel("$r_0\\,(\\bar\\Lambda - \\bar\\Lambda_{1^{+-}})$")
+    ax.set_title(f"Gluelump levels, $\\beta = {beta}$ ($a \\approx 0.17$ fm), {res['ncfg']} cfgs, HYP2", loc="left",
+                 fontsize=8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_bounds(min(ys), max(ys))
+    ax.spines["left"].set_position(("outward", 4))
+    ax.text(0.0, -0.14, "single lattice spacing: not continuum extrapolated", transform=ax.transAxes, fontsize=6,
+            color=GREY)
+    return save_pdf(fig, os.path.join(OUT, f"levels_{tag}.pdf"))
+
+
 def gluelump_overlay(tag="qA57", binsize=4, t0=1, td=2):
     """All main channels on one panel, direct labels at the last reliable point."""
-    files = sorted(glob.glob(f"{DATA}/{tag}/s*/out/{tag}_s*_c*_glue.h5"))
+    files = good_files(tag)
     data, meta = GL.load(files, "HYP2")
     cols = {"T1g-": INK, "T1u-": ACC, "T2u-": "#2166ac", "T2g-": "#4d9221", "A1g+": "#8c510a"}
     fig, ax = plt.subplots(figsize=(4.4, 3.0))
@@ -146,3 +198,4 @@ def gluelump_overlay(tag="qA57", binsize=4, t0=1, td=2):
 
 if __name__ == "__main__":
     print(gluelump_overlay())
+    print(level_diagram_from_json(os.path.join(HERE, "..", "qA57_gluelump_HYP2.json"), "qA57", 2.922, 5.7))

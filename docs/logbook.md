@@ -134,3 +134,20 @@ Decisions taken from it:
   (902 cfgs), qA60 43207589 (184), qA62 43207590 (3).  Files from segments still running old code
   will be caught by a second re-measurement pass.  No physics result had been derived from the
   affected data (the earlier effective-mass overlay is superseded).
+
+## 2026-11-21 — First gluelump spectrum, β = 5.7 (corrected data)
+
+- Re-measurement pass 1 complete (DAGMans 43207588/89/90); pass 2 for stragglers / old-code
+  segments: 43214632 (qA57, 14), 43214633 (qA60, 44), 43214634 (qA62, 6).
+- Binning study on the 986 fixed-basis qA57 files: jackknife error ratio vs bin size 1/2/4/8/16 =
+  1.00/0.99/0.98/0.97/1.13 (T1g⁻), 1.00/1.03/1.05/1.11/1.05 (T1u⁻) → plateau; bin size 4 fixed a priori.
+- Analysis (HYP2, GEVP t0 = 1, td = 2, pruned basis, correlated single-exp AIC average over windows,
+  results/qA57_gluelump_HYP2.json): ordering 1⁺⁻ < 1⁻⁻ < 2⁻⁻ < (3⁺⁻ ≈ 2⁺⁻) < 0⁺⁺ < 2⁺⁺ < 2⁻⁺;
+  cubic-symmetry check: T2u⁻/Eu⁻ (2⁻⁻) and T2g⁻/Eg⁻ (2⁺⁻) degenerate within errors.
+  r0 (Λ̄(1⁻⁻) − Λ̄(1⁺⁻)) = 1.13(10) at β = 5.7 (r0/a = 2.922), stable vs t_min = 2, 3
+  (1.133, 1.135; t_min = 4: 0.92(36)).  Continuum literature 0.87(9) (HSW), 0.933(18) (FM).
+  Not a gate comparison: M2 gate is defined on the continuum limit (β = 6.0, 6.2 pending).
+  Fit policy unchanged (no tuning toward literature).
+- Quark test DAG: solve jobs OK (~4 min per κ on A100 after fp32 smearing); contraction failed on
+  HDF5 group iteration (fixed, rescue DAG 43214627).  Resource request lowered (8 GB, 1 CPU,
+  GPU ≥ 20 GB) after better-analyze showed a single matching slot.
