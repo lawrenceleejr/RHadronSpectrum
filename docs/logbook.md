@@ -91,3 +91,15 @@ Decisions taken from it:
   rate). Future generation nodes restricted to cc 7.0/8.0/9.0 (V100/A100/H100) by editing the
   dag gen.sub files (applies at next submission); manifest default changed. Running jobs left to finish.
 - qA57: first segments complete, 344 configurations measured; qA60: 56.
+
+## 2026-11-21 — New deliverable: lattice "picture" of the lightest state (docs/visualization.md)
+
+- User request: final Blender animation of the lightest R-hadron's spatial structure ("soupy QCD").
+- Decision: paired point sources (same spatial site, t0 and t0 + pair_sep) for all quark solves
+  (`pair_sep: 12` at β = 6.0), so light-quark charge/matter densities around the gluino come from
+  the same solves as the spectrum.  Density contraction to be implemented in the solve job before
+  M4 production; gluonic energy density and flowed-vacuum foam from stored configurations.
+- Visuals made so far: TikZ sector schematic + pipeline, Blender stills, Tufte data plots
+  (results/visuals, paper/figures).
+- measq single-job design abandoned (benchmark jobs ran > 3 h with no output, no eviction spool);
+  replaced by resumable per-role solve jobs + per-config contraction job (timing test 43207076).

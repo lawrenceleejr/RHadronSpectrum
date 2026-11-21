@@ -28,3 +28,4 @@ quark:                       # M3/M4 valence sector (NP clover, ALPHA c_SW at be
   multigrid: [[4, 4, 4, 4], [2, 2, 2, 2]]
   static_actions: [HYP2, HYP1]
   seed: 61
+  pair_sep: 12               # paired sources at the same spatial site (three-point densities)

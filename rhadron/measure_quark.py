@@ -35,14 +35,27 @@ BARYONS = [
 MESON_FLAVOURS = ["ud", "us", "ss"]
 
 
-def source_sites(shape, cfg_id, n_src, seed=0):
+def source_sites(shape, cfg_id, n_src, seed=0, pair_sep=None):
+    """Deterministic source sites per configuration.
+    pair_sep=None: n_src sources at random spatial positions, spread evenly in time.
+    pair_sep=d:   n_src/2 random spatial positions, each with sources at t0 and t0 + d.  The pairs
+    give both legs of three-point functions with an operator inserted between them at the same
+    gluino site (charge/matter density of the light cloud; docs/visualization.md)."""
     Lt, Lz, Ly, Lx = shape
     rng = np.random.default_rng([seed, cfg_id])
     t0 = int(rng.integers(Lt))
     sites = []
-    for k in range(n_src):  # sources spread in time: t0 + k Lt / n_src, random spatial position
-        t = (t0 + k * Lt // n_src) % Lt
-        sites.append((int(rng.integers(Lx)), int(rng.integers(Ly)), int(rng.integers(Lz)), t))
+    if pair_sep is None:
+        for k in range(n_src):
+            t = (t0 + k * Lt // n_src) % Lt
+            sites.append((int(rng.integers(Lx)), int(rng.integers(Ly)), int(rng.integers(Lz)), t))
+        return sites
+    npair = max(1, n_src // 2)
+    for k in range(npair):
+        t = (t0 + k * Lt // npair) % Lt
+        x = (int(rng.integers(Lx)), int(rng.integers(Ly)), int(rng.integers(Lz)))
+        sites.append((*x, t))
+        sites.append((*x, (t + pair_sep) % Lt))
     return sites
 
 
@@ -66,7 +79,7 @@ def run(U_np, qcfg, cfg_id, log=print):
     U = cp.asarray(U_np)
     Usm = ape_spatial(U, qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
     tmax = qcfg["tmax"]
-    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0))
+    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0), qcfg.get("pair_sep"))
     W = {}
     for a in qcfg["static_actions"]:
         V4 = static_links(U, a)
@@ -214,7 +227,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
     Lt, Lz, Ly, Lx = shape
     tmax = qcfg["tmax"]
     smears = qcfg["smear_levels"]
-    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0))[: (n_src or qcfg["n_src"])]
+    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0), qcfg.get("pair_sep"))[: (n_src or qcfg["n_src"])]
     done = {}
     if _os.path.exists(outpath):
         with h5py.File(outpath, "r") as f:
