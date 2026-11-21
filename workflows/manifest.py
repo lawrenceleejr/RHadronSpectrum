@@ -92,6 +92,12 @@ def gen_dag(a):
     print(dag)
 
 
+def refresh_code(a):
+    """Rebuild code.tar.gz of an existing DAG (future nodes pick it up; outputs record the SHA)."""
+    dagdir = os.path.join(DATA, a.tag, "dag")
+    print(code_tarball(os.path.join(dagdir, "code.tar.gz")))
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -104,8 +110,10 @@ def main():
     g.add_argument("--mem", default="8GB")
     g.add_argument("--disk", default="8GB")
     g.add_argument("--maxjobs", type=int, default=40)
+    r = sub.add_parser("refresh-code")
+    r.add_argument("tag")
     a = p.parse_args()
-    {"gen": gen_dag}[a.cmd](a)
+    {"gen": gen_dag, "refresh-code": refresh_code}[a.cmd](a)
 
 
 if __name__ == "__main__":

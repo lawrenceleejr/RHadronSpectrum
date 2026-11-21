@@ -181,3 +181,33 @@ def test_pion_positive(cfg):
     C = light.meson(S.reshape(T, 1, 1, 1, 4, 3, 4, 3), qo.G5)
     assert np.allclose(C.imag, 0, atol=1e-12 * np.abs(C).max()) and np.all(C.real > 0)
     assert np.allclose(C.real, np.einsum("tsaub->t", np.abs(S.reshape(T, 4, 3, 4, 3)) ** 2))
+
+
+@pytest.mark.parametrize("colour,flav,dq,j", [
+    ("octet_A", "uud_A", "Cg5", "1/2"), ("octet_S", "uds_singlet", "Cgi", "1/2"),
+    ("octet_A", "uds_Lambda8", "Cg5", "1/2"), ("octet_S", "uud_A", "Cgi", "3/2"),
+    ("octet_A", "uud_S", "Cgi", "3/2"),
+])
+def test_rbaryon_fast_equals_general(cfg, colour, flav, dq, j):
+    _, _, (S, W), _ = cfg
+    rng = np.random.default_rng(5)
+    Ss = S * np.exp(0.3j * rng.normal())  # distinct strange propagator
+    pr = {0: S, 1: S, 2: Ss[::-1].copy()}
+    F = qo.baryon_tensor(colour, flav, dq, j, nr=True)
+    Fb = qo.baryon_bar(F)
+    a = hadron.rbaryon_block(F, Fb, pr, 1)
+    b = hadron.rbaryon_block_fast(F, Fb, pr, 1)
+    assert np.abs(a - b).max() < 1e-10 * np.abs(a).max()
+
+
+def test_production_baryon_operators_nonvanishing(cfg):
+    from rhadron.measure_quark import BARYONS
+    _, _, (S, W), _ = cfg
+    pr = {0: S, 1: S, 2: S}
+    ref = None
+    for op in BARYONS:
+        F = qo.baryon_tensor(*op, nr=True)
+        B = hadron.rbaryon_block_fast(F, qo.baryon_bar(F), pr, 1)
+        n = np.abs(B).max()
+        ref = n if ref is None else ref
+        assert n > 1e-8 * ref, op

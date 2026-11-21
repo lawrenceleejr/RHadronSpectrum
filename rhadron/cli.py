@@ -81,6 +81,8 @@ def cmd_gen(a):
         done += 1
         if done % 10 == 0:
             print(f"sweep {done} plaq {plaquette(U)[0]:.6f} {time.time() - t_start:.0f}s", flush=True)
+        if done % int(ens.get("ckpt_every", 100)) == 0 and done < target:
+            io.save_gauge(ck, to_numpy(U), {**meta, "sweeps": done}, precision="double")
         if done >= ntherm and (done - ntherm) % nsep == 0:
             cfg_id = (done - ntherm) // nsep
             name = f"{tag}_s{stream}_c{cfg_id:04d}"

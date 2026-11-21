@@ -96,3 +96,44 @@ def static_light(Gamma, S, W):
         X = np.einsum("satb,tv->savb", X, Gbar)
         out[t] = -np.einsum("savb,vbsa->", X, sb)
     return out
+
+
+def flavour_components(F, tol=0.0):
+    """Split F[a, rho, A, B, C] (A = f*12 + spin*3 + colour) into {(f1, f2, f3): F_f[a, rho, 12, 12, 12]}."""
+    na, nr = F.shape[:2]
+    Fr = F.reshape(na, nr, NF, 12, NF, 12, NF, 12)
+    out = {}
+    for f1 in range(NF):
+        for f2 in range(NF):
+            for f3 in range(NF):
+                blk = Fr[:, :, f1, :, f2, :, f3, :]
+                if np.abs(blk).max() > tol:
+                    out[(f1, f2, f3)] = blk
+    return out
+
+
+def rbaryon_block_fast(F, Fbar, S_by_flavour, tmax):
+    """Same as rbaryon_block, using flavour components: only permutations sigma with
+    f_i == f'_sigma(i) contribute, each a 12-dimensional contraction."""
+    Fc, Fbc = flavour_components(F), flavour_components(Fbar)
+    na, nr = F.shape[:2]
+    nb, ns = Fbar.shape[:2]
+    out = np.zeros((tmax + 1, na, nr, nb, ns), dtype=complex)
+    for t in range(tmax + 1):
+        P = {f: S[t].reshape(12, 12) for f, S in S_by_flavour.items()}
+        for fl, Fa in Fc.items():
+            X = np.tensordot(Fa, P[fl[0]], axes=([2], [0]))
+            X = np.tensordot(X, P[fl[1]], axes=([2], [0]))
+            X = np.tensordot(X, P[fl[2]], axes=([2], [0]))  # [a, r, A', B', C'] at flavours fl
+            for flb, Fb in Fbc.items():
+                for p, sg in PERMS:
+                    # source slot i (flavour fl[i]) contracts with sink slot p[i] (flavour flb[p[i]])
+                    if any(fl[i] != flb[p[i]] for i in range(3)):
+                        continue
+                    # X index i pairs with Fb index p[i]:  Fb_perm[..., i] = Fb[..., p[i]]
+                    inv = [0, 0, 0]
+                    for i in range(3):
+                        inv[p[i]] = i
+                    Fbp = np.transpose(Fb, (0, 1) + tuple(2 + p[i] for i in range(3)))
+                    out[t] += sg * np.tensordot(X, Fbp, axes=([2, 3, 4], [2, 3, 4]))
+    return out
