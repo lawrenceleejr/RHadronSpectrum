@@ -192,3 +192,109 @@ def _props(site, lr, isrc, il, jl, roles):
     if "s" in roles:
         p[2] = site[("s", isrc, il, jl)]
     return p
+
+
+# ------------------------------------------------------------------------------------------------
+# Two-stage production: solve (one job per config and kappa role, GPU/QUDA) -> contract (per config).
+def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
+    """Solve for one kappa role, all sources and smearing levels; store site propagators
+    S(x0, t0+t; x0, t0) [tmax+1, 4, 3, 4, 3] per (source, src level, snk level) and light-hadron
+    correlators.  Resumable: sources already in `outpath` are skipped; file rewritten atomically
+    after every source."""
+    import json as _json
+    import os as _os
+
+    import cupy as cp
+    import h5py
+
+    from .gauge.smear import ape_spatial
+    from .solve import quda as Q
+
+    shape = U_np.shape[1:5]
+    Lt, Lz, Ly, Lx = shape
+    tmax = qcfg["tmax"]
+    smears = qcfg["smear_levels"]
+    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0))[: (n_src or qcfg["n_src"])]
+    done = {}
+    if _os.path.exists(outpath):
+        with h5py.File(outpath, "r") as f:
+            for k in f:
+                done[k] = f[k][...]
+    t_all = time.time()
+    li = Q.init([Lx, Ly, Lz, Lt])
+    gauge = Q.to_quda_gauge(li, U_np)
+    U = cp.asarray(U_np)
+    Usm = ape_spatial(U, qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
+    t0 = time.time()
+    d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
+                     multigrid=qcfg.get("multigrid"))
+    log(f"[{role}] dirac + MG setup {time.time() - t0:.1f}s", flush=True)
+    for isrc, x0 in enumerate(sites):
+        if f"src{isrc}/S_0_0" in done or f"src{isrc}" in {k.split('/')[0] for k in done}:
+            log(f"[{role}] source {isrc} already done", flush=True)
+            continue
+        for il, lev in enumerate(smears):
+            t1 = time.time()
+            Ssrc = _solve_smeared_source(Q, li, d, Usm, x0, lev)
+            cp.cuda.Device().synchronize()
+            log(f"[{role}] src {isrc} level {il}: 12 solves {time.time() - t1:.1f}s", flush=True)
+            for jl, lev2 in enumerate(smears):
+                done[f"src{isrc}/S_{il}_{jl}"] = to_numpy(_site_series(_sink_smear(Usm, Ssrc, lev2), x0, tmax))
+            if il == 0:
+                done[f"src{isrc}/light_pi"] = to_numpy(light.meson(Ssrc, qo.G5, t0=x0[3]))
+                done[f"src{isrc}/light_rho"] = to_numpy(sum(light.meson(Ssrc, G[i], t0=x0[3]) for i in range(3)) / 3)
+                done[f"src{isrc}/light_a0"] = to_numpy(light.meson(Ssrc, qo.ONE, t0=x0[3]))
+                done[f"src{isrc}/light_N"] = to_numpy(light.nucleon(Ssrc, t0=x0[3]))
+            del Ssrc
+        tmp = outpath + ".tmp"
+        with h5py.File(tmp, "w") as f:
+            for k, v in done.items():
+                f.create_dataset(k, data=v)
+            f.attrs["role"] = role
+            f.attrs["kappa"] = qcfg["kappas"][role]
+            f.attrs["sites"] = _json.dumps(sites)
+            f.attrs["cfg_id"] = cfg_id
+        _os.replace(tmp, outpath)
+        log(f"[{role}] source {isrc} saved ({time.time() - t_all:.0f}s elapsed)", flush=True)
+    return outpath
+
+
+def contract_from_files(U_np, qcfg, role_files, log=print):
+    """Combine the per-role site propagators of one configuration into all static-site correlators."""
+    import json as _json
+
+    import h5py
+
+    try:
+        import cupy as cp
+        xp = cp
+    except Exception:  # noqa: BLE001
+        xp = np
+    tmax = qcfg["tmax"]
+    smears = qcfg["smear_levels"]
+    site, sites, roles = {}, None, []
+    for path in role_files:
+        with h5py.File(path, "r") as f:
+            role = str(f.attrs["role"])
+            roles.append(role)
+            sites = _json.loads(f.attrs["sites"])
+            for k in f:
+                src, name = k.split("/")
+                isrc = int(src[3:])
+                if name.startswith("S_"):
+                    il, jl = map(int, name[2:].split("_"))
+                    site[(role, isrc, il, jl)] = xp.asarray(f[k][...])
+                else:
+                    site.setdefault(("light", role, name[6:]), []).append(f[k][...])
+    nsrc = min(len({k[1] for k in site if k[0] == r}) for r in roles)
+    sites = sites[:nsrc]
+    U = xp.asarray(U_np)
+    W = {}
+    for a in qcfg["static_actions"]:
+        V4 = static_links(U, a)
+        W[a] = [wilson_lines(V4, x0[3], tmax)[:, x0[2], x0[1], x0[0]].copy() for x0 in sites]
+        del V4
+    t0 = time.time()
+    corr = contract_all(site, sites, W, roles, smears, tmax, qcfg)
+    log(f"contractions {time.time() - t0:.0f}s for {nsrc} sources", flush=True)
+    return corr, {"sites": sites, "roles": roles}

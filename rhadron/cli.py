@@ -154,6 +154,34 @@ def cmd_measq(a):
     print(json.dumps(info["timings"]), f"total {time.time() - t0:.0f}s", flush=True)
 
 
+def cmd_solve(a):
+    from . import measure_quark
+
+    ens = yaml.safe_load(open(a.ensemble))
+    U, at = io.load_gauge(a.config)
+    cfg_id = int(at.get("cfg", 0)) + 10000 * int(at.get("stream", 0))
+    os.makedirs(a.outdir, exist_ok=True)
+    out = os.path.join(a.outdir, os.path.basename(a.config).replace(".h5", f"_prop_{a.role}.h5"))
+    if a.resume and os.path.exists(a.resume) and not os.path.exists(out):
+        import shutil
+        shutil.copy(a.resume, out)
+    measure_quark.solve_role(U, ens["quark"], cfg_id, a.role, out, n_src=a.nsrc)
+
+
+def cmd_contract(a):
+    from . import measure_quark
+
+    ens = yaml.safe_load(open(a.ensemble))
+    U, at = io.load_gauge(a.config)
+    corr, info = measure_quark.contract_from_files(U, ens["quark"], a.props)
+    os.makedirs(a.outdir, exist_ok=True)
+    name = os.path.basename(a.config).replace(".h5", "_quark.h5")
+    meta = {"ensemble": ens["tag"], "stream": int(at.get("stream", 0)), "cfg": int(at.get("cfg", 0)),
+            "plaq": float(at.get("plaq", 0)), "ens_hash": io.config_hash(ens), "quark_params": ens["quark"],
+            "sites": json.dumps(info["sites"]), "roles": json.dumps(info["roles"])}
+    io.save_h5(os.path.join(a.outdir, name), corr, meta)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="rhadron")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -174,8 +202,21 @@ def main(argv=None):
     q.add_argument("--ensemble", required=True)
     q.add_argument("--config", required=True)
     q.add_argument("--outdir", default="out")
+    so = sub.add_parser("solve")
+    so.add_argument("--ensemble", required=True)
+    so.add_argument("--config", required=True)
+    so.add_argument("--role", required=True)
+    so.add_argument("--nsrc", type=int, default=None)
+    so.add_argument("--resume", default=None, help="partial propagator file from a previous attempt")
+    so.add_argument("--outdir", default="out")
+    co = sub.add_parser("contract")
+    co.add_argument("--ensemble", required=True)
+    co.add_argument("--config", required=True)
+    co.add_argument("--props", nargs="+", required=True)
+    co.add_argument("--outdir", default="out")
     a = p.parse_args(argv)
-    {"gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq}[a.cmd](a)
+    {"gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq, "solve": cmd_solve,
+     "contract": cmd_contract}[a.cmd](a)
 
 
 if __name__ == "__main__":
