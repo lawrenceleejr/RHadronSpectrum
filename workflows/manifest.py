@@ -212,6 +212,9 @@ def quark_dag(a):
         lines.append(f'VARS {cnode} NODE="{cnode}" INPUTS="{",".join([os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml"), c] + props)}" '
                      f'ARGS="contract --ensemble ens.yaml --config {os.path.basename(c)} --props {" ".join(os.path.basename(p) for p in props)} --outdir out"')
         lines.append(f"RETRY {cnode} 3")
+        lines.append(f"PRIORITY {cnode} 100")  # contract as soon as a config's solves are done
+        for r in roles:
+            lines.append(f"PRIORITY s_{name}_{r} {max(0, 50 - n // 4)}")  # finish configs in order
         lines.append(f"PARENT {' '.join(f's_{name}_{r}' for r in roles)} CHILD {cnode}")
         n += 1
     common = f"""universe = vanilla
