@@ -219,3 +219,29 @@ Decisions taken from it:
   P₊: E irrep γ_x D_x − γ_y D_y + cyclic), derivative sources for the strange-like κ_s = 0.13400 only;
   gate comparison P₊ − S (and P₋ − S) at κ_s vs BGR 0809.1103 continuum quenched static-strange
   400(8)(8) MeV (P₊) and 412(10)(8) MeV (P₋), within 2σ, same plateau-onset fit rule, r0 = 0.5 fm.
+
+## 2026-11-22 — M3 gate, attempt 2: FAILED (nucleon only) — reported to the originating session
+
+Full M3 set: 105 qA60 configs (quark), 141 (static-light P-wave at κ_s).  Pre-registered method
+(plateau-onset rule, t_max N 16 / ρ 16).  Fixes made during evaluation (bugs, not physics choices):
+(a) fitter: positive amplitudes (ln A) and 5 % covariance shrinkage — a fit had diverged to A = −114,
+aE = 1.51 on a covariance with condition number 3e11; (b) sign convention of the derivative
+static-light correlators (overall minus from the anti-Hermitian symmetric derivative).
+Data-quality finding: configuration (stream 8, cfg 0) is **exceptional** at κ = 0.13455 (pion
+C(10) = 1.0e4 × median) — the known quenched-clover near-zero-mode artefact; it removes the lightest
+pion and static-light fits.  Proposed objective rule (not yet adopted, decision requested):
+exclude a configuration from the quenched valence analysis if its pion C(10) exceeds 10× the median
+at any κ (applied identically to all channels incl. R-hadrons).
+
+Results (results/qA60_M3_attempt2.json; *_excl.json with the proposed rule):
+- π, ρ: all κ within 1.2σ of UKQCD (with exclusion; κ=0.13455 π: 0.2462(25) vs 0.2457).
+- Static-light: P₋ − S chiral 435(62) MeV (pull 0.00; 0.70 with exclusion) vs BGR 435(17);
+  at κ_s: P₋(deriv) − S = 421(27) vs 412(13) (pull +0.32), P₊ − S = 441(19) vs 400(11) (pull +1.89).
+  Heavy-spin partners exactly degenerate.
+- Nucleon: a m_N = 0.886(14), 0.777(12), 0.710(20) vs UKQCD 0.799, 0.700, 0.641: pulls +5.2, +4.0,
+  +2.45 (with exclusion) → **gate fails**.  The plateau-onset rule fires at t = 6 because the
+  effective-mass drift (≈0.05 over t = 4–13) is below the per-step noise; m_eff(t = 9–13) ≈ 0.84–0.88
+  for κ = 0.13344 is still above 0.799.  Most likely cause: excited-state contamination of the
+  smeared-source / point-sink nucleon (no smeared sink, no GEVP for baryons).
+Status: M4 not started.  Stage A generation continues.  Proposed next step (awaiting decision):
+smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve job), re-evaluate.

@@ -1,5 +1,6 @@
 {
  "ncfg": 105,
+ "excluded": [],
  "binsize": 2,
  "ainv_MeV": 2118.897326,
  "light": {
@@ -166,6 +167,28 @@
   "note": "P- from local operators chirally extrapolated vs BGR 435; P+ (E irrep) and derivative P- at kappa_s vs BGR static-strange 400 / 412 MeV."
  },
  "pwave_s": {
-  "ncfg": 141
+  "ncfg": 141,
+  "PmD": {
+   "MeV": 421.47396493388237,
+   "MeV_err": 27.177371015899784,
+   "BGR": 412.0,
+   "pull": 0.3153420045305183,
+   "tmin_onset": 4,
+   "window": [
+    4,
+    8
+   ]
+  },
+  "PpE": {
+   "MeV": 441.14274318500526,
+   "MeV_err": 18.548351873023122,
+   "BGR": 400.0,
+   "pull": 1.8936652935476297,
+   "tmin_onset": 4,
+   "window": [
+    4,
+    10
+   ]
+  }
  }
 }
