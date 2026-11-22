@@ -9,12 +9,12 @@ kappa_s: 0.13640
 shape: [48, 24, 24, 24]
 seed: 7001
 hmc:
-  tau: 1.0
-  n_outer: 6            # benchmark start; tune for ~75% acceptance
-  n_inner: 4
+  tau: 0.5             # PACS-CS-like trajectory length
+  n_outer: 10           # finer steps: cold start drove dH to O(10-20)
+  n_inner: 5
   rational: [12, 15, 7.0e-4, 32, 50]   # as PyQUDA test_hmc_clover; checked at the benchmark
   tol: 1.0e-9
   maxiter: 5000
-  n_warm_noreject: 20   # accept unconditionally while far from equilibrium (cold start)
+  n_warm_noreject: 0    # forced acceptance of large-dH trajectories made the clover term non-HPD
   n_therm: 500
   save_every: 10
