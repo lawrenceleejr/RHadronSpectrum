@@ -275,3 +275,49 @@ def test_density_fast_matches_reference_and_gauge_invariant(pair_props):
     # gauge invariance (smearing has iterative projection only in the static links: 1e-8)
     for a, b in zip(res[0], res[1]):
         assert np.abs(a - b).max() < 1e-7 * np.abs(a).max()
+
+
+def test_covariant_derivative_gauge_covariant():
+    from rhadron.dirac import covariant_derivative
+    rng = np.random.default_rng(31)
+    U = random_gauge(SHAPE, rng, eps=0.5)
+    g = random_su3(SHAPE, rng)
+    psi = rng.normal(size=SHAPE + (4, 3)) + 1j * rng.normal(size=SHAPE + (4, 3))
+    for i in range(3):
+        a = covariant_derivative(gauge_transform(U, g), np.einsum("...ab,...sb->...sa", g, psi), i)
+        b = np.einsum("...ab,...sb->...sa", g, covariant_derivative(U, psi, i))
+        assert np.abs(a - b).max() < 1e-12
+
+
+def _pwave_site_props(U):
+    """SD[(j,l)][t] at x0 from derivative sources (l) and sink derivatives (j), point-like smearing."""
+    from rhadron.dirac import covariant_derivative, solve, wilson_clover_matrix
+    x0, T = (1, 2, 0, 1), 4
+    M = wilson_clover_matrix(U, KAPPA, CSW).tocsr()
+    Lt = SHAPE[0]
+    SD = {}
+    for l in range(3):
+        S = np.zeros(SHAPE + (4, 3, 4, 3), dtype=complex)
+        for s0 in range(4):
+            for a0 in range(3):
+                b = np.zeros(SHAPE + (4, 3), dtype=complex)
+                b[x0[3], x0[2], x0[1], x0[0], s0, a0] = 1.0
+                b = covariant_derivative(U, b, l)
+                S[..., s0, a0] = solve(M, b.ravel()).reshape(b.shape)
+        Sc = S.transpose(0, 1, 2, 3, 4, 6, 7, 5)  # sink colour last
+        for j in range(3):
+            D = covariant_derivative(U, Sc, j).transpose(0, 1, 2, 3, 4, 7, 5, 6)
+            SD[(j, l)] = np.stack([D[(x0[3] + t) % Lt, x0[2], x0[1], x0[0]] for t in range(T + 1)])
+    W = wilson_lines(static_links(U, "HYP2", n_proj=40), x0[3], T)[:, x0[2], x0[1], x0[0]]
+    return SD, W
+
+
+def test_static_light_pwave_gauge_invariant():
+    """(Reality holds only for the ensemble average, not per configuration.)"""
+    rng = np.random.default_rng(32)
+    U = random_gauge(SHAPE, rng, eps=0.4)
+    g = random_su3(SHAPE, rng)
+    r = [hadron.static_light_pwave(*_pwave_site_props(V)) for V in (U, gauge_transform(U, g))]
+    for k in r[0]:
+        assert np.abs(r[0][k] - r[1][k]).max() < 1e-7 * np.abs(r[0][k]).max(), k
+        assert np.abs(r[0][k]).max() > 0

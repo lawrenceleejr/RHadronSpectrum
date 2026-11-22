@@ -145,3 +145,14 @@ def wuppertal_cols(U3, psi, alpha, n_iter):
             h = h + xp.matmul(shift(P, i, -1), Ub[i].swapaxes(-1, -2))
         P = (P + alpha * h) / (1.0 + 6 * alpha)
     return P.reshape(shp)
+
+
+def covariant_derivative(U, psi, i):
+    """Symmetric covariant derivative (D_i psi)(x) = U_i(x) psi(x+i) - U_i^dag(x-i) psi(x-i) on a field
+    psi[t,z,y,x, ..., colour] (colour LAST; any extra axes); U[mu, t,z,y,x, 3, 3]."""
+    xp = get_xp(psi)
+    shp = psi.shape
+    P = psi.reshape(shp[:4] + (-1, 3))
+    fwd = xp.matmul(shift(P, i, 1), U[i].swapaxes(-1, -2))
+    bwd = xp.matmul(shift(P, i, -1), shift(U[i], i, -1).conj())  # sum_b conj(U_i(x-i))_ba psi_b
+    return (fwd - bwd).reshape(shp)

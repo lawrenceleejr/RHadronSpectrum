@@ -363,3 +363,88 @@ def contract_from_files(U_np, qcfg, role_files, log=print):
     corr = contract_all(site, sites, W, roles, smears, tmax, qcfg)
     log(f"contractions {time.time() - t0:.0f}s for {nsrc} sources", flush=True)
     return corr, {"sites": sites, "roles": roles}
+
+
+def pwave_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
+    """Static-light S, P- (local and derivative) and P+ (E irrep, j = 3/2) correlators for one kappa
+    role, level-0 smearing, all sources; self-contained (computes the HYP2 static line in the job).
+    Derivative sources D_l(smeared point source) for l = x, y, z (36 solves per source) and sink
+    derivatives D_j at the static site.  Writes per-source correlators to `outpath` (resumable)."""
+    import json as _json
+    import os as _os
+
+    import cupy as cp
+    import h5py
+
+    from .dirac import covariant_derivative, wuppertal_cols
+    from .gauge.smear import ape_spatial
+    from .solve import quda as Q
+
+    shape = U_np.shape[1:5]
+    Lt, Lz, Ly, Lx = shape
+    tmax = qcfg["tmax"]
+    lev = qcfg["smear_levels"][0]
+    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0), qcfg.get("pair_sep"))[: (n_src or qcfg["n_src"])]
+    done = {}
+    if _os.path.exists(outpath):
+        with h5py.File(outpath, "r") as f:
+            f.visititems(lambda name, obj: done.__setitem__(name, obj[...]) if isinstance(obj, h5py.Dataset) else None)
+    t_all = time.time()
+    li = Q.init([Lx, Ly, Lz, Lt])
+    gauge = Q.to_quda_gauge(li, U_np)
+    U = cp.asarray(U_np)
+    Usm = ape_spatial(U.astype(cp.complex64), qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
+    V4 = static_links(U, "HYP2")
+    d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
+                     multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
+    log(f"[pw {role}] setup {time.time() - t_all:.0f}s", flush=True)
+    for isrc, x0 in enumerate(sites):
+        if f"src{isrc}/PpE" in done:
+            continue
+        x, y, z, t0 = x0
+        idx = [(t0 + t) % Lt for t in range(tmax + 1)]
+        col = cp.zeros((1, Lz, Ly, Lx, 3, 3), dtype=Usm.dtype)
+        for a0 in range(3):
+            col[0, z, y, x, a0, a0] = 1.0
+        col = wuppertal_cols(Usm[:3, t0:t0 + 1], col, lev[0], lev[1])
+
+        def solve_from(srcfield):  # srcfield [1, z, y, x, a0, a] -> sink-smeared, colour-last sub-lattice
+            S = cp.zeros((Lt, Lz, Ly, Lx, 4, 3, 4, 3), dtype=cp.complex128)
+            for s0 in range(4):
+                for a0 in range(3):
+                    b = cp.zeros((Lt, Lz, Ly, Lx, 4, 3), dtype=cp.complex128)
+                    b[t0, :, :, :, s0, :] = srcfield[0, :, :, :, a0, :]
+                    sol = d.invert(Q._fermion_from_lexico(li, b))
+                    S[..., s0, a0] = Q.lexico_xp(cp.asarray(sol.data), cp)
+            sub = cp.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)
+            return wuppertal_cols(Usm[:3, idx], sub, lev[0], lev[1])  # [t, z, y, x, s, s0, a0, a]
+
+        def at_site(sub):
+            return sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(cp.complex128)  # [t, s, a, s0, a0]
+
+        t1 = time.time()
+        sub0 = solve_from(col.astype(cp.complex128))
+        S0 = at_site(sub0)
+        SD = {}
+        for l in range(3):
+            dcol = covariant_derivative(Usm[:, t0:t0 + 1], col, l)
+            subl = solve_from(dcol.astype(cp.complex128))
+            for j in range(3):
+                SD[(j, l)] = at_site(covariant_derivative(Usm[:, idx], subl, j))
+        W = wilson_lines(V4, t0, tmax)[:, z, y, x]
+        done[f"src{isrc}/S"] = to_numpy(hadron.static_light(qo.G5, S0, W))
+        done[f"src{isrc}/Pm"] = to_numpy(hadron.static_light(qo.ONE, S0, W))
+        pw = hadron.static_light_pwave(SD, W)
+        done[f"src{isrc}/PmD"] = to_numpy(pw["Pm_D"])
+        done[f"src{isrc}/PpE"] = to_numpy(pw["Pp_E"])
+        tmp = outpath + ".tmp"
+        with h5py.File(tmp, "w") as f:
+            for k, v in done.items():
+                f.create_dataset(k, data=v)
+            f.attrs["role"] = role
+            f.attrs["kappa"] = qcfg["kappas"][role]
+            f.attrs["sites"] = _json.dumps(sites)
+            f.attrs["cfg_id"] = cfg_id
+        _os.replace(tmp, outpath)
+        log(f"[pw {role}] source {isrc}: 48 solves + contractions {time.time() - t1:.0f}s", flush=True)
+    return outpath

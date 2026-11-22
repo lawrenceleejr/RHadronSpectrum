@@ -143,3 +143,41 @@ def rbaryon_block_fast(F, Fbar, S_by_flavour, tmax):
                     Fbp = xp.transpose(Fb, (0, 1) + tuple(2 + p[i] for i in range(3)))
                     out[t] += sg * xp.tensordot(X, Fbp, axes=([2, 3, 4], [2, 3, 4]))
     return out
+
+
+def static_light_matrix(Gam_snk, Gam_src, S, W):
+    """C(t) = -Tr[Gam_snk (P+ W^dag) Gam_src_bar S(0;t)] for a general light-line site propagator S[t]
+    (e.g. with derivative insertions at both ends); static_light() is the diagonal special case."""
+    xp = get_xp(S)
+    Gm = xp.asarray(Gam_snk)
+    Gbar = xp.asarray(G[3] @ Gam_src.conj().T @ G[3])
+    g5, pp = xp.asarray(G5), xp.asarray(P_PLUS)
+    W = xp.asarray(W)
+    sb = xp.einsum("st,xuatb->xsbua", g5, S.conj())
+    sb = xp.einsum("xsbua,uv->xsbva", sb, g5)
+    Gh = xp.einsum("st,xba->xsatb", pp, W.conj())
+    X = xp.einsum("su,xuatb->xsatb", Gm, Gh)
+    X = xp.einsum("xsatb,tv->xsavb", X, Gbar)
+    return -xp.einsum("xsavb,xvbsa->x", X, sb)
+
+
+# P-wave static-light operators  O = qbar Gamma_i D_j h  (derivative on the light quark):
+#   P-  (j = 1/2): sum_i gamma_i D_i ;   P+ (j = 3/2, E irrep): gamma_x D_x - gamma_y D_y (+ cyclic)
+PWAVE = {
+    "Pm_D": [[(1.0, i, i) for i in range(3)]],
+    "Pp_E": [[(1.0, 0, 0), (-1.0, 1, 1)], [(1.0, 1, 1), (-1.0, 2, 2)], [(1.0, 2, 2), (-1.0, 0, 0)]],
+}
+
+
+def static_light_pwave(SD, W):
+    """SD[(j, l)][t] = D_j^snk S D_l^src at the static site.  Returns {name: C(t)} averaged over the
+    irrep rows; C = sum_{(c,i,j),(c',k,l)} c c' C_{(gamma_i D_j),(gamma_k D_l)}."""
+    out = {}
+    for name, rows in PWAVE.items():
+        acc = 0
+        for row in rows:
+            for (c1, i, j) in row:
+                for (c2, k, l) in row:
+                    acc = acc + c1 * c2 * static_light_matrix(G[i], G[k], SD[(j, l)], W)
+        out[name] = acc / len(rows)
+    return out

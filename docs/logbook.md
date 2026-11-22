@@ -215,3 +215,7 @@ Decisions taken from it:
 - If attempt 2 fails, this is reported to the originating session (two honest attempts).
   (iii) maximal fit time t_max: nucleon 12 → 16, ρ 14 → 16 (π 18, static-light 10 unchanged);
   windows are additionally cut where the correlator is consistent with zero at 2σ.
+- Static-light P₊ (pre-registered before any P₊ data): derivative operators (P₋: Σ γ_i D_i;
+  P₊: E irrep γ_x D_x − γ_y D_y + cyclic), derivative sources for the strange-like κ_s = 0.13400 only;
+  gate comparison P₊ − S (and P₋ − S) at κ_s vs BGR 0809.1103 continuum quenched static-strange
+  400(8)(8) MeV (P₊) and 412(10)(8) MeV (P₋), within 2σ, same plateau-onset fit rule, r0 = 0.5 fm.

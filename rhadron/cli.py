@@ -161,11 +161,13 @@ def cmd_solve(a):
     U, at = io.load_gauge(a.config)
     cfg_id = int(at.get("cfg", 0)) + 10000 * int(at.get("stream", 0))
     os.makedirs(a.outdir, exist_ok=True)
-    out = os.path.join(a.outdir, os.path.basename(a.config).replace(".h5", f"_prop_{a.role}.h5"))
+    suffix = "pw" if a.pwave else "prop"
+    out = os.path.join(a.outdir, os.path.basename(a.config).replace(".h5", f"_{suffix}_{a.role}.h5"))
     if a.resume and os.path.exists(a.resume) and not os.path.exists(out):
         import shutil
         shutil.copy(a.resume, out)
-    measure_quark.solve_role(U, ens["quark"], cfg_id, a.role, out, n_src=a.nsrc)
+    fn = measure_quark.pwave_role if a.pwave else measure_quark.solve_role
+    fn(U, ens["quark"], cfg_id, a.role, out, n_src=a.nsrc)
 
 
 def cmd_contract(a):
@@ -238,6 +240,7 @@ def main(argv=None):
     so.add_argument("--role", required=True)
     so.add_argument("--nsrc", type=int, default=None)
     so.add_argument("--resume", default=None, help="partial propagator file from a previous attempt")
+    so.add_argument("--pwave", action="store_true", help="static-light P-wave (derivative) solves only")
     so.add_argument("--outdir", default="out")
     co = sub.add_parser("contract")
     co.add_argument("--ensemble", required=True)
