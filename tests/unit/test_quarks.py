@@ -321,3 +321,21 @@ def test_static_light_pwave_gauge_invariant():
     for k in r[0]:
         assert np.abs(r[0][k] - r[1][k]).max() < 1e-7 * np.abs(r[0][k]).max(), k
         assert np.abs(r[0][k]).max() > 0
+
+
+def test_smeared_sink_nucleon_transposes():
+    """The nucleon_role sink-smearing path (colour-last transpose, wuppertal_cols, transpose back)
+    equals column-wise reference smearing followed by the nucleon contraction."""
+    from rhadron.contract import light
+    from rhadron.dirac import wuppertal, wuppertal_cols
+    rng = np.random.default_rng(41)
+    U = random_gauge(SHAPE, rng, eps=0.5)
+    S = rng.normal(size=SHAPE + (4, 3, 4, 3)) + 1j * rng.normal(size=SHAPE + (4, 3, 4, 3))
+    idx = [2, 3, 4]
+    sm = wuppertal_cols(U[:3, idx], np.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5)), 0.25, 2)
+    sm = sm.transpose(0, 1, 2, 3, 4, 7, 5, 6)
+    ref = S.copy()
+    for s0 in range(4):
+        for a0 in range(3):
+            ref[..., s0, a0] = wuppertal(U, S[..., s0, a0], 0.25, 2)
+    assert np.abs(light.nucleon(sm) - light.nucleon(ref[idx])).max() < 1e-10 * np.abs(light.nucleon(ref[idx])).max()

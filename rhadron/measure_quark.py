@@ -448,3 +448,61 @@ def pwave_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
         _os.replace(tmp, outpath)
         log(f"[pw {role}] source {isrc}: 48 solves + contractions {time.time() - t1:.0f}s", flush=True)
     return outpath
+
+
+def nucleon_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print, tmax_n=16):
+    """Smeared-source x smeared-sink nucleon matrix N[t, snk level, src level] at zero momentum, for
+    one kappa role, all sources (resumable).  Sink smearing on the timeslices t0..t0+tmax_n only."""
+    import json as _json
+    import os as _os
+
+    import cupy as cp
+    import h5py
+
+    from .dirac import wuppertal_cols
+    from .gauge.smear import ape_spatial
+    from .solve import quda as Q
+
+    shape = U_np.shape[1:5]
+    Lt, Lz, Ly, Lx = shape
+    smears = qcfg["smear_levels"]
+    nl = len(smears)
+    sites = source_sites(shape, cfg_id, qcfg["n_src"], qcfg.get("seed", 0), qcfg.get("pair_sep"))[: (n_src or qcfg["n_src"])]
+    done = {}
+    if _os.path.exists(outpath):
+        with h5py.File(outpath, "r") as f:
+            f.visititems(lambda name, obj: done.__setitem__(name, obj[...]) if isinstance(obj, h5py.Dataset) else None)
+    t_all = time.time()
+    li = Q.init([Lx, Ly, Lz, Lt])
+    gauge = Q.to_quda_gauge(li, U_np)
+    U = cp.asarray(U_np)
+    Usm = ape_spatial(U.astype(cp.complex64), qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
+    d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
+                     multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
+    log(f"[nuc {role}] setup {time.time() - t_all:.0f}s", flush=True)
+    for isrc, x0 in enumerate(sites):
+        if f"src{isrc}/N" in done:
+            continue
+        t1 = time.time()
+        idx = [(x0[3] + t) % Lt for t in range(tmax_n + 1)]
+        N = np.zeros((tmax_n + 1, nl, nl), dtype=complex)
+        for il, lev in enumerate(smears):
+            Ssrc = _solve_smeared_source(Q, li, d, Usm, x0, lev)
+            sub = Ssrc[idx]  # [t, z, y, x, s, a, s0, a0]
+            for jl, lev2 in enumerate(smears):
+                sm = cp.ascontiguousarray(sub.transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)
+                sm = wuppertal_cols(Usm[:3, idx], sm, lev2[0], lev2[1]).transpose(0, 1, 2, 3, 4, 7, 5, 6)
+                N[:, jl, il] = to_numpy(light.nucleon(sm.astype(cp.complex128), t0=0))
+            del Ssrc, sub
+        done[f"src{isrc}/N"] = N
+        tmp = outpath + ".tmp"
+        with h5py.File(tmp, "w") as f:
+            for k, v in done.items():
+                f.create_dataset(k, data=v)
+            f.attrs["role"] = role
+            f.attrs["kappa"] = qcfg["kappas"][role]
+            f.attrs["sites"] = _json.dumps(sites)
+            f.attrs["cfg_id"] = cfg_id
+        _os.replace(tmp, outpath)
+        log(f"[nuc {role}] source {isrc}: {time.time() - t1:.0f}s", flush=True)
+    return outpath

@@ -245,3 +245,13 @@ Results (results/qA60_M3_attempt2.json; *_excl.json with the proposed rule):
   smeared-source / point-sink nucleon (no smeared sink, no GEVP for baryons).
 Status: M4 not started.  Stage A generation continues.  Proposed next step (awaiting decision):
 smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve job), re-evaluate.
+
+## 2026-11-22 — User decisions on the M3 failure (in this session)
+
+- The report could not be delivered to the originating session (trusted-device refusal); it was
+  given to the user directly, who approved both recommendations:
+  1. **Exceptional-configuration rule adopted** for all quenched valence analyses (all channels,
+     incl. R-hadrons): exclude a configuration if its pion C(10) exceeds 10× the median at any κ.
+  2. **Nucleon re-measurement**: smeared-source × smeared-sink 2×2 nucleon matrix (2 Wuppertal levels
+     at both ends) on the same 105 configs for κ = l1, l2, l3; M3 gate attempt 3 uses the GEVP
+     principal correlator of that matrix with the same plateau-onset rule and t_max = 16 (fixed now).
