@@ -22,6 +22,7 @@ UKQCD = {  # a m_pi, a m_V, a m_N (32^3 x 64), asymmetric errors symmetrised (ma
     "l3": {"kappa": 0.13455, "pi": (0.2457, 0.0014), "rho": (0.4636, 0.0088), "N": (0.641, 0.020)},
 }
 BGR_PM_S = (435.0, np.hypot(15, 9))
+BGR_STATIC_STRANGE = {"PpE": (400.0, np.hypot(8, 8)), "PmD": (412.0, np.hypot(10, 8))}  # 0809.1103 Tab. 11
 R0A, R0_FM, HBARC = 5.369, 0.5, 197.327
 
 
@@ -115,11 +116,50 @@ def run(qdir, binsize=2, out=None, onset=True):
         ok &= abs(pull) <= 2.0
     else:
         ok = False
+    # P-wave (derivative operators) at the strange-like kappa, from the self-contained *_pw_s.h5 files
+    pwf = sorted(glob.glob(os.path.join(qdir, "*_pw_s.h5")))
+    if pwf:
+        rows = []
+        for f in pwf:
+            with h5py.File(f, "r") as h:
+                srcs = sorted({k.split("/")[0] for k in h.keys() if True} | set())
+                ks = []
+                h.visititems(lambda n, o: ks.append(n) if isinstance(o, h5py.Dataset) else None)
+                srcs = sorted({k.split("/")[0] for k in ks})
+                if not srcs or any(f"{s_}/PpE" not in ks for s_ in srcs):
+                    continue
+                avg = {c: np.mean([h[f"{s_}/{c}"][...] for s_ in srcs], axis=0) for c in ("S", "PmD", "PpE")}
+                cid = int(h.attrs["cfg_id"])
+                rows.append(((cid // 10000, cid % 10000), avg))
+        rows.sort(key=lambda r: r[0])
+        meta = [(r[0][0], r[0][1], 0.0) for r in rows]
+        res["pwave_s"] = {"ncfg": len(rows)}
+        if len(rows) >= 10:
+            E = {c: energy_jk(np.array([r[1][c] for r in rows]), meta, binsize, 1, 10, onset) for c in ("S", "PmD", "PpE")}
+            for c in ("PmD", "PpE"):
+                if not (E[c] and E["S"]):
+                    ok = False
+                    continue
+                d = E[c]["Ej"] - E["S"]["Ej"]
+                n = len(d)
+                dstat = float(np.sqrt((n - 1) / n * np.sum((d - d.mean()) ** 2)))
+                dsys = float(np.hypot(E[c]["syst"], E["S"]["syst"]))
+                val = (E[c]["E"] - E["S"]["E"]) * ainv_mev()
+                err = float(np.hypot(dstat, dsys)) * ainv_mev()
+                ref, rerr = BGR_STATIC_STRANGE[c]
+                pull = (val - ref) / np.hypot(err, rerr)
+                res["pwave_s"][c] = {"MeV": float(val), "MeV_err": err, "BGR": ref, "pull": float(pull),
+                                     "tmin_onset": E[c]["tmin_onset"], "window": E[c]["window"]}
+                ok &= abs(pull) <= 2.0
+        else:
+            ok = False
+    else:
+        ok = False
     res["gate"]["light_hadrons_all_within_2sigma"] = all(
         abs(v["pull"]) <= 2 for r in res["light"].values() for v in r.values())
     res["gate"]["passed"] = bool(ok)
-    res["gate"]["note"] = ("P+ (j=3/2) needs a covariant-derivative operator, not yet implemented; "
-                           "this gate tests S and P- (j=1/2+) and the light hadrons.")
+    res["gate"]["note"] = ("P- from local operators chirally extrapolated vs BGR 435; P+ (E irrep) and derivative "
+                           "P- at kappa_s vs BGR static-strange 400 / 412 MeV.")
     if out:
         json.dump(res, open(out, "w"), indent=1, default=float)
     return res
@@ -135,4 +175,7 @@ if __name__ == "__main__":
     for role, v in r["staticlight"].items():
         print(f"{role} static-light: a dE(P- - S) = {v['a_dPmS']:.4f}  = {v['MeV']:.0f}({v['MeV_err']:.0f}) MeV;"
               f"  heavy-spin partner diff {v['heavy_spin_partner_diff_a']:+.4f}")
+    for c, v in r.get("pwave_s", {}).items():
+        if isinstance(v, dict):
+            print(f"kappa_s {c} - S = {v['MeV']:.0f}({v['MeV_err']:.0f}) MeV vs BGR {v['BGR']:.0f}: pull {v['pull']:+.2f}")
     print(json.dumps(r["gate"], indent=1))
