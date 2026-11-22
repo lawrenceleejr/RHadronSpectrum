@@ -161,3 +161,15 @@ Decisions taken from it:
 - Density (three-point) contraction for the final visualisation will be added before Stage B
   production (where the final physics and the "lightest state" picture come from); quenched solves
   are not repeated for it.
+
+## 2026-11-22 — β = 6.0 gluelump spectrum (interim, 454 cfgs)
+
+- Re-measure pass 2 nearly done (qA57 1000/1000 fixed; qA60 454/480; qA62 12/18).
+- qA60 binning flat (ratios 1.00-1.06 up to bin 8); bin 4.  results/qA60_gluelump_HYP2.json.
+- r0 (Λ̄(1⁻⁻) − Λ̄(1⁺⁻)) = 1.06(30) at β = 6.0 (r0/a = 5.369) vs 1.13(10) at β = 5.7.  The β = 6.0
+  error is dominated by the AIC window spread (adjoint-line noise grows at finer a).  Ordering of the
+  low-lying levels matches the literature.  T2g⁻ and A2u⁻ fits latch onto late noisy windows
+  (errors ≈ 2/r0) — flagged unreliable; more statistics (target 600) and β = 6.2 needed before the
+  M2 continuum gate.  Fit policy unchanged.
+- M3 DAG 43215648: 29 nodes done in 2 h, 45 evictions (GPU slot preemption); resumable solve jobs
+  absorb this; projected ~1.5 days for 101 cfgs.
