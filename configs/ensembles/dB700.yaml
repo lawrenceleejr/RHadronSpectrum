@@ -10,7 +10,7 @@ shape: [48, 24, 24, 24]
 seed: 7001
 hmc:
   tau: 0.5             # PACS-CS-like trajectory length
-  n_outer: 10           # finer steps: cold start drove dH to O(10-20)
+  n_outer: 12           # benchmark (10x5): 67% acceptance, dH O(1) after thermalisation onset
   n_inner: 5
   rational: [12, 15, 7.0e-4, 32, 50]   # as PyQUDA test_hmc_clover; checked at the benchmark
   tol: 1.0e-9

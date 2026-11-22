@@ -173,3 +173,15 @@ Decisions taken from it:
   M2 continuum gate.  Fit policy unchanged.
 - M3 DAG 43215648: 29 nodes done in 2 h, 45 evictions (GPU slot preemption); resumable solve jobs
   absorb this; projected ~1.5 days for 101 cfgs.
+
+## 2026-11-22 — Stage B HMC benchmark
+
+- 43216906: QUDA abort "max_element(0) appears unset" (half-precision clover in the RHMC multishift
+  force) → fermion monomials forced to double/single precision.
+- 43217035: forced acceptance during warm-up (n_warm_noreject = 20) accepted dH = 22, 3, 12 →
+  "Clover trlog has returned nan, clover matrix non HPD" → normal Metropolis from trajectory 1,
+  τ = 0.5, finer integrator.
+- 43217157: 12 trajectories, 38-72 s each on V100, acceptance 67%, plaquette 0.69 → 0.58.
+  Stage B HMC ≈ 250 V100-h total (docs/budget.md).  n_outer raised to 12.
+- Stage B production (M5) is NOT started: gates M2-M4 still open.  Two gen segments held at the
+  20 h OSPool limit (slow GPUs before the FP64 restriction) were retargeted and released.

@@ -47,12 +47,14 @@ being profiled) + contractions → ≈ 0.35 GPU-h / config.
 
 ## Stage B — dynamical N_f = 2+1 (self-generated, PACS-CS parameters, 24³×48), estimate
 
-- HMC (PyQUDA: Iwasaki gauge + 2-flavour clover + 1-flavour RHMC clover), est. 5-10 GPU-min per
-  trajectory on A100/H100: 2 ensembles × (1000 thermalisation + 400 cfgs × 10) ≈ 10,000
-  trajectories ≈ 800-1700 GPU-h.  To be benchmarked at the start of M5.
+- HMC benchmark (cluster 43217157, V100-32GB, dB700 24³×48, τ = 0.5, Omelyan 10 outer × 5 inner,
+  double/single precision): 12 trajectories from a cold start, 38-72 s each (rising with CG
+  iterations as the field thermalises; plaquette 0.69 → 0.58), acceptance 8/12.  Production
+  estimate ~90 s per trajectory at equilibrium (12 outer steps): 2 ensembles × (1000 thermalisation
+  + 400 cfgs × 10) ≈ 10,000 trajectories ≈ 250 V100-h (≈ 125 A100-h).
 - Measurements at κ_ud = 0.13700/0.13727 (MG pays off at lighter masses), plus I=0 loops:
   ≈ 800 cfgs × 0.75 GPU-h ≈ 600 GPU-h.
-- Stage B total ≈ 1500-2500 GPU-h.
+- Stage B total ≈ 1000-1500 GPU-h (HMC measured; measurements estimated).
 
 ## Total (A + B)
 
