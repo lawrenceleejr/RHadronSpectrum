@@ -204,6 +204,14 @@ def cmd_glue(a):
         print(f"{name} {time.time() - t0:.0f}s", flush=True)
 
 
+def cmd_hmc(a):
+    from . import hmc_dyn
+
+    ens = yaml.safe_load(open(a.ensemble))
+    ens["stream"] = a.stream
+    hmc_dyn.run(ens, a.outdir, a.until, start=a.start)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="rhadron")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -241,8 +249,14 @@ def main(argv=None):
     gl.add_argument("--configs", nargs="+", required=True)
     gl.add_argument("--outdir", default="out")
     gl.add_argument("--cpu", action="store_true")
+    hm = sub.add_parser("hmc")
+    hm.add_argument("--ensemble", required=True)
+    hm.add_argument("--stream", type=int, default=0)
+    hm.add_argument("--until", type=int, required=True, help="absolute trajectory count")
+    hm.add_argument("--start", default=None)
+    hm.add_argument("--outdir", default="out")
     a = p.parse_args(argv)
-    {"glue": cmd_glue, "gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq, "solve": cmd_solve,
+    {"hmc": cmd_hmc, "glue": cmd_glue, "gen": cmd_gen, "bench": cmd_bench, "measq": cmd_measq, "solve": cmd_solve,
      "contract": cmd_contract}[a.cmd](a)
 
 

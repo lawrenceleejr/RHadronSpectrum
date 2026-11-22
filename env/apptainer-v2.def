@@ -1,0 +1,12 @@
+# rhadron-v2: rhadron-v1 (QUDA + PyQUDA + CuPy) plus gmpy2 for PyQUDA's RHMC rational approximations.
+Bootstrap: localimage
+From: /scratch/llee/rhadron/images/rhadron-v1.sif
+
+%environment
+    export CUPY_CACHE_DIR=${TMPDIR:-/tmp}/cupy_cache
+
+%post
+    python3 -m pip install --no-cache-dir gmpy2
+
+%test
+    python3 -c "import gmpy2, pyquda; print(gmpy2.version())"  # no libcuda on the AP: do not import the QUDA bindings
