@@ -73,3 +73,16 @@ def test_adjoint_so8(U):
 
 def test_generators():
     assert np.allclose(np.einsum("aij,bji->ab", TA, TA), 0.5 * np.eye(8))
+
+
+def test_correlated_fit_recovers_exponential():
+    from rhadron.analysis.fits import fit_corr
+    rng = np.random.default_rng(4)
+    t = np.arange(20)
+    truth = 3.0 * np.exp(-0.25 * t)
+    noise = rng.normal(size=(200, 20)) * 0.01 * truth
+    noise = np.cumsum(noise, axis=1) / np.sqrt(np.arange(1, 21))  # strongly correlated in t
+    data = truth + noise
+    cov = np.cov(data, rowvar=False) / len(data)
+    p, chi2, dof = fit_corr(data.mean(0), cov, np.arange(8, 14), 1)
+    assert abs(p[1] - 0.25) < 0.01 and np.exp(p[0]) > 0

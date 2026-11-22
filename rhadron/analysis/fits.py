@@ -6,10 +6,17 @@ from scipy.optimize import least_squares
 from .resample import jackknife_samples
 
 
+SHRINK = 0.05  # covariance shrinkage toward its diagonal (ill-conditioned lattice covariances)
+
+
+def shrink(cov, lam=SHRINK):
+    return (1 - lam) * cov + lam * np.diag(np.diag(cov))
+
+
 def _model(p, t, nexp):
     out = np.zeros_like(t, dtype=float)
     for k in range(nexp):
-        A, E = p[2 * k], p[2 * k + 1]
+        A, E = np.exp(p[2 * k]), p[2 * k + 1]  # amplitudes positive: parameterised by ln A
         if k > 0:  # higher states parameterised by positive gaps
             E = p[1] + np.sum(np.exp(p[3:2 * k + 2:2]))
         out = out + A * np.exp(-E * t)
@@ -19,12 +26,12 @@ def _model(p, t, nexp):
 def fit_corr(cmean, cov, t, nexp=1, p0=None):
     """Correlated chi^2 fit.  Returns (params, chi2, dof)."""
     y = cmean[t]
-    Ci = np.linalg.inv(cov[np.ix_(t, t)])
+    Ci = np.linalg.inv(shrink(cov[np.ix_(t, t)]))
     L = np.linalg.cholesky(Ci)
     if p0 is None:
         E0 = np.log(y[0] / y[1]) / (t[1] - t[0]) if y[1] > 0 and y[0] > 0 else 0.5
         A0 = y[0] * np.exp(E0 * t[0])
-        p0 = [A0, E0] + sum(([A0 * 0.5, np.log(0.5)] for _ in range(nexp - 1)), [])
+        p0 = [np.log(abs(A0)), E0] + sum(([np.log(abs(A0) * 0.5), np.log(0.5)] for _ in range(nexp - 1)), [])
 
     def res(p):
         return L.T @ (_model(p, t.astype(float), nexp) - y)
