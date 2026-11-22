@@ -213,3 +213,5 @@ Decisions taken from it:
   start at or after it; (ii) full 101-config M3 set.  Static-light P₊ (j = 3/2) needs a
   covariant-derivative operator: not tested by this gate, to be added before M4 conclusions.
 - If attempt 2 fails, this is reported to the originating session (two honest attempts).
+  (iii) maximal fit time t_max: nucleon 12 → 16, ρ 14 → 16 (π 18, static-light 10 unchanged);
+  windows are additionally cut where the correlator is consistent with zero at 2σ.

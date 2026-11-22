@@ -15,3 +15,18 @@ gluelump:
   shapes: [plaq, chair, lplaq]
   tmax: 16
   hyp1_every: 4              # second static action (HYP1) on every 4th config
+quark:                       # M4 valence sector at beta = 6.2 (NP clover, ALPHA c_SW)
+  csw: 1.61375
+  kappas: {l1: 0.13460, l2: 0.13510, l3: 0.13530, s: 0.13490}   # UKQCD hep-lat/9910022; s ~ m_etas (interpolated)
+  light_roles: [l1, l2, l3]
+  link_smear: {alpha: 0.5, n: 18}  # scaled ~ (a(6.0)/a(6.2))^2 x 10
+  smear_levels: [[0.25, 55], [0.25, 165]]
+  n_src: 8
+  pair_sep: 16
+  tmax: 18
+  tol: 1.0e-9
+  maxiter: 4000
+  multigrid: [[4, 4, 4, 4], [2, 2, 2, 2]]
+  no_multigrid: true         # benchmark at the first qA62 configs (lighter a m_q per kappa)
+  static_actions: [HYP2, HYP1]
+  seed: 62
