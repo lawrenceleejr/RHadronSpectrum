@@ -257,6 +257,14 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
     U = cp.asarray(U_np)
     Usm = ape_spatial(U.astype(cp.complex64), qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
     t = lap("APE link smearing (fp32)", t)
+    dens = bool(qcfg.get("densities")) and qcfg.get("pair_sep")
+    if dens:
+        from .contract.density import density_3pt
+
+        V4 = static_links(U, "HYP2")
+        sep = int(qcfg["pair_sep"])
+        tau_off = sep // 2
+        t = lap("HYP2 static links (densities)", t)
     t0 = time.time()
     d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
                      multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
@@ -274,6 +282,23 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             for jl, lev2 in enumerate(smears):
                 done[f"src{isrc}/S_{il}_{jl}"] = to_numpy(_sink_smeared_site(Usm, Ssrc, x0, tmax, lev2))
             t = lap("sink smearing", t)
+            if il == 0 and dens:
+                pair, member = divmod(isrc, 2)
+                tau = (sites[2 * pair][3] + tau_off) % Lt
+                done[f"src{isrc}/slice_tau"] = to_numpy(Ssrc[tau].reshape(-1, 4, 3, 4, 3))
+                if member == 1:
+                    x0 = sites[2 * pair]
+                    Sy0 = cp.asarray(done[f"src{2 * pair}/slice_tau"])
+                    Sy1 = Ssrc[tau].reshape(-1, 4, 3, 4, 3)
+                    S10 = cp.asarray(done[f"src{2 * pair}/S_0_0"][sep])  # S(x1 <- x0), smeared both ends
+                    Wl = wilson_lines(V4, x0[3], sep)[sep, x0[2], x0[1], x0[0]]
+                    for cname, Gam in (("g5", qo.G5), ("gx", G[0])):
+                        for jname, GJ in (("g4", G[3]), ("1", qo.ONE)):
+                            cq, cqb = density_3pt(Sy0, Sy1, S10, Wl, Gam, GJ)
+                            done[f"pair{pair}/dens_{cname}_{jname}_q"] = to_numpy(cq).reshape(Lz, Ly, Lx)
+                            done[f"pair{pair}/dens_{cname}_{jname}_qbar"] = to_numpy(cqb).reshape(Lz, Ly, Lx)
+                    del done[f"src{2 * pair}/slice_tau"], done[f"src{isrc}/slice_tau"]
+                    t = lap(f"densities pair {pair}", t)
             if il == 0:
                 done[f"src{isrc}/light_pi"] = to_numpy(light.meson(Ssrc, qo.G5, t0=x0[3]))
                 done[f"src{isrc}/light_rho"] = to_numpy(sum(light.meson(Ssrc, G[i], t0=x0[3]) for i in range(3)) / 3)
@@ -318,11 +343,13 @@ def contract_from_files(U_np, qcfg, role_files, log=print):
             f.visititems(lambda name, obj: keys.append(name) if isinstance(obj, h5py.Dataset) else None)
             for k in keys:
                 src, name = k.split("/")
+                if not src.startswith("src"):
+                    continue  # pair*/dens_* (density maps) are analysed separately
                 isrc = int(src[3:])
                 if name.startswith("S_"):
                     il, jl = map(int, name[2:].split("_"))
                     site[(role, isrc, il, jl)] = xp.asarray(f[k][...])
-                else:
+                elif name.startswith("light_"):
                     site.setdefault(("light", role, name[6:]), []).append(f[k][...])
     nsrc = min(len({k[1] for k in site if k[0] == r}) for r in roles)
     sites = sites[:nsrc]
