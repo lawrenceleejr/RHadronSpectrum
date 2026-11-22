@@ -185,3 +185,13 @@ Decisions taken from it:
   Stage B HMC ≈ 250 V100-h total (docs/budget.md).  n_outer raised to 12.
 - Stage B production (M5) is NOT started: gates M2-M4 still open.  Two gen segments held at the
   20 h OSPool limit (slow GPUs before the FP64 restriction) were retargeted and released.
+
+## 2026-11-22 — Density three-point function implemented and validated
+
+- `rhadron/contract/density.py`: I=1 R-meson, local bilinear inserted at τ = t0 + pair_sep/2 on the
+  quark and antiquark lines; CPU test: fast == explicit reference (1e-10), gauge invariant (1e-7).
+- Wired into `solve_role` behind `densities: true` (off for running Stage A production).  GPU test
+  (43217277, H100, qA60_s0_c0003, one pair): densities 0.4 s per pair; Re Σ_y C3 for the charge
+  density (J = γ4) exactly opposite on quark vs antiquark line (γ5-hermiticity, degenerate u/d);
+  matter density (J = 1) same sign on both lines, as expected.  Profiles need ensemble statistics.
+- Plan: enable `densities: true` for Stage B quark production (final visualisation).
