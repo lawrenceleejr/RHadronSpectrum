@@ -30,11 +30,30 @@ def ainv_mev():
     return R0A * HBARC / R0_FM
 
 
+EXCLUDE = set()  # (stream, cfg) excluded as exceptional (set by run(exclude_exceptional=True))
+
+
+def exceptional_configs(files, roles=("l1", "l2", "l3", "s"), t=10, factor=10.0):
+    """Data-quality rule (proposed, logbook): a configuration is exceptional for the quenched valence
+    sector if its pion correlator at t = 10 exceeds the median over configurations by > 10x for any kappa."""
+    bad = set()
+    for role in roles:
+        rows = []
+        for f in files:
+            with h5py.File(f, "r") as h:
+                k = f"light/{role}/pi"
+                if k in h:
+                    rows.append(((int(h.attrs["stream"]), int(h.attrs["cfg"])), float(h[k][t].real)))
+        med = np.median([v for _, v in rows])
+        bad |= {sc for sc, v in rows if v > factor * med}
+    return bad
+
+
 def load(files, key):
     rows = []
     for f in files:
         with h5py.File(f, "r") as h:
-            if key in h:
+            if key in h and (int(h.attrs["stream"]), int(h.attrs["cfg"])) not in EXCLUDE:
                 rows.append((int(h.attrs["stream"]), int(h.attrs["cfg"]), h[key][...]))
     rows.sort(key=lambda r: (r[0], r[1]))
     meta = [(r[0], r[1], 0.0) for r in rows]
@@ -58,9 +77,12 @@ def energy_jk(c, meta, binsize, t0, tmax, onset=True):
             "window": [best["tmin"], best["tmax"]], "chi2dof": best["chi2"] / max(best["dof"], 1)}
 
 
-def run(qdir, binsize=2, out=None, onset=True):
+def run(qdir, binsize=2, out=None, onset=True, exclude_exceptional=False):
     files = sorted(glob.glob(os.path.join(qdir, "*_quark.h5")))
-    res = {"ncfg": len(files), "binsize": binsize, "ainv_MeV": ainv_mev(), "light": {}, "staticlight": {},
+    EXCLUDE.clear()
+    if exclude_exceptional:
+        EXCLUDE.update(exceptional_configs(files))
+    res = {"ncfg": len(files), "excluded": sorted(EXCLUDE), "binsize": binsize, "ainv_MeV": ainv_mev(), "light": {}, "staticlight": {},
            "gate": {}}
     ok = True
     for role, ref in UKQCD.items():
@@ -135,7 +157,11 @@ def run(qdir, binsize=2, out=None, onset=True):
         meta = [(r[0][0], r[0][1], 0.0) for r in rows]
         res["pwave_s"] = {"ncfg": len(rows)}
         if len(rows) >= 10:
-            E = {c: energy_jk(np.array([r[1][c] for r in rows]), meta, binsize, 1, 10, onset) for c in ("S", "PmD", "PpE")}
+            # derivative-operator correlators carry an overall minus sign (anti-Hermitian symmetric
+            # derivative at the source); sign convention fixed to positive.
+            sgn = {"S": 1.0, "PmD": -1.0, "PpE": -1.0}
+            E = {c: energy_jk(sgn[c] * np.array([r[1][c] for r in rows]), meta, binsize, 1, 10, onset)
+                 for c in ("S", "PmD", "PpE")}
             for c in ("PmD", "PpE"):
                 if not (E[c] and E["S"]):
                     ok = False
@@ -167,7 +193,8 @@ def run(qdir, binsize=2, out=None, onset=True):
 
 if __name__ == "__main__":
     import sys
-    r = run(sys.argv[1], out=sys.argv[2] if len(sys.argv) > 2 else None)
+    r = run(sys.argv[1], out=sys.argv[2] if len(sys.argv) > 2 else None, exclude_exceptional="--exclude-exceptional" in sys.argv)
+    print("excluded:", r["excluded"])
     for role, d in r["light"].items():
         for h, v in d.items():
             print(f"{role} {h:3s} aM={v['E']:.4f}({v['err']*1e4:.0f}) win={v['window']} chi2/dof={v['chi2dof']:.2f}"
