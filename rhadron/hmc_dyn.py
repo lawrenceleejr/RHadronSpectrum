@@ -39,6 +39,13 @@ def run(ens, outdir, until, start=None, log=print):
         CloverWilsonAction(li, fermionRationalParam(2, *rp), m(float(ens["kappa_ud"])), 2, tol, maxiter, csw),
         CloverWilsonAction(li, fermionRationalParam(1, *rp), m(float(ens["kappa_s"])), 1, tol, maxiter, csw),
     ]
+    # Avoid QUDA's half-precision clover path in the multishift (RHMC) force: it aborts with
+    # "max_element(0) appears unset" (clover_field_order.h) for this build.  Double/single only.
+    from pyquda.enum_quda import QudaPrecision as QP
+    for mono in monomials[1:]:
+        mono.dirac.setPrecision(cuda=QP.QUDA_DOUBLE_PRECISION, sloppy=QP.QUDA_SINGLE_PRECISION,
+                                refinement_sloppy=QP.QUDA_SINGLE_PRECISION,
+                                precondition=QP.QUDA_SINGLE_PRECISION)
     hmc_inner = HMC(li, monomials[:1], O4Nf5Ng0V(int(h["n_inner"])))
     hmc = HMC(li, monomials[1:], O4Nf5Ng0V(int(h["n_outer"])), hmc_inner)
     hmc.setFermionVerbosity(QudaVerbosity.QUDA_SILENT)
