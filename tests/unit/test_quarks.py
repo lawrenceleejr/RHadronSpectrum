@@ -238,3 +238,40 @@ def test_sink_smeared_site_matches_full_smearing():
     ref = _site_series(full, x0, tmax)
     fast = _sink_smeared_site(U, S, x0, tmax, (0.25, 2))
     assert np.abs(fast - ref).max() < 1e-12
+
+
+@pytest.fixture(scope="module")
+def pair_props():
+    """Point-sink propagators from two sources at the same spatial site, t0 = 1 and t1 = 5."""
+    rng = np.random.default_rng(21)
+    U = random_gauge(SHAPE, rng, eps=0.4)
+    g = random_su3(SHAPE, rng)
+    out = []
+    for W in (U, gauge_transform(U, g)):
+        sm = lambda p, W=W: wuppertal(W, p, 0.25, 2)  # noqa: E731
+        S0 = point_propagator(W, KAPPA, CSW, (1, 2, 0, 1), src_smear=sm)
+        S1 = point_propagator(W, KAPPA, CSW, (1, 2, 0, 5), src_smear=sm)
+        S0s = point_propagator(W, KAPPA, CSW, (1, 2, 0, 1), src_smear=sm, snk_smear=sm)
+        V4 = static_links(W, "HYP2", n_proj=40)
+        Wl = wilson_lines(V4, 1, 4)[4, 0, 2, 1]
+        out.append((S0, S1, S0s, Wl))
+    return out
+
+
+def test_density_fast_matches_reference_and_gauge_invariant(pair_props):
+    from rhadron.contract.density import density_3pt, density_3pt_reference
+    tau = 3
+    res = []
+    for S0, S1, S0s, Wl in pair_props:
+        Sy0 = S0[tau].reshape(-1, 4, 3, 4, 3)
+        Sy1 = S1[tau].reshape(-1, 4, 3, 4, 3)
+        S10 = S0s[5, 0, 2, 1]
+        for Gam, GJ in ((qo.G5, qo.G[3]), (qo.G[0], qo.ONE)):
+            f = density_3pt(Sy0, Sy1, S10, Wl, Gam, GJ)
+            r = density_3pt_reference(Sy0, Sy1, S10, Wl, Gam, GJ)
+            for x, y in zip(f, r):
+                assert np.abs(x - y).max() < 1e-10 * np.abs(y).max()
+        res.append(density_3pt(Sy0, Sy1, S10, Wl, qo.G5, qo.G[3]))
+    # gauge invariance (smearing has iterative projection only in the static links: 1e-8)
+    for a, b in zip(res[0], res[1]):
+        assert np.abs(a - b).max() < 1e-7 * np.abs(a).max()
