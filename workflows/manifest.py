@@ -182,6 +182,12 @@ def quark_dag(a):
     shutil.copy(a.ensemble, os.path.join(dagdir, "ens.yaml"))
     shutil.copy(os.path.join(HERE, "wrapper.sh"), dagdir)
     roles = list(ens["quark"]["kappas"])
+    if a.pwave_role:
+        dagdir = os.path.join(base, "pwave_dag")
+        os.makedirs(os.path.join(dagdir, "logs"), exist_ok=True)
+        sha = code_tarball(os.path.join(dagdir, "code.tar.gz"))
+        shutil.copy(a.ensemble, os.path.join(dagdir, "ens.yaml"))
+        shutil.copy(os.path.join(HERE, "wrapper.sh"), dagdir)
     cfgs = sorted(_glob.glob(os.path.join(base, "s*", "out", f"{tag}_s*_c[0-9][0-9][0-9][0-9].h5")))
     if a.every > 1:
         cfgs = [c for c in cfgs if int(c[-7:-3]) % a.every == 0]
@@ -191,6 +197,20 @@ def quark_dag(a):
     n = 0
     for c in cfgs:
         name = os.path.basename(c)[:-3]
+        if a.pwave_role:
+            pw = os.path.join(qdir, "out", f"{name}_pw_{a.pwave_role}.h5")
+            node = f"p_{name}"
+            inputs = [os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml"), c]
+            resume = ""
+            if os.path.exists(pw):
+                inputs.append(pw)
+                resume = f"--resume {os.path.basename(pw)}"
+            lines.append(f"JOB {node} {dagdir}/solve.sub")
+            lines.append(f'VARS {node} NODE="{node}" INPUTS="{",".join(inputs)}" '
+                         f'ARGS="solve --pwave --ensemble ens.yaml --config {os.path.basename(c)} --role {a.pwave_role} {resume} --outdir out"')
+            lines.append(f"RETRY {node} 3")
+            n += 1
+            continue
         if os.path.exists(os.path.join(qdir, "out", name + "_quark.h5")):
             continue
         props = []
@@ -240,7 +260,7 @@ error = {dagdir}/logs/$(NODE).err
                  f"request_memory = {a.mem}\nrequest_disk = {a.disk}\nqueue\n")
     open(os.path.join(dagdir, "dagman.config"), "w").write(
         f"DAGMAN_MAX_JOBS_SUBMITTED = {a.maxjobs}\nDAGMAN_MAX_JOBS_IDLE = {a.maxjobs}\n")
-    dag = os.path.join(dagdir, f"{tag}_quark.dag")
+    dag = os.path.join(dagdir, f"{tag}_{'pwave' if a.pwave_role else 'quark'}.dag")
     open(dag, "w").write("\n".join(lines) + "\n")
     print(dag, f"{n} configurations x {len(roles)} roles")
 
@@ -278,6 +298,7 @@ def main():
     qd.add_argument("--maxjobs", type=int, default=20)
     qd.add_argument("--every", type=int, default=1, help="use every n-th configuration")
     qd.add_argument("--limit", type=int, default=0)
+    qd.add_argument("--pwave-role", default=None, help="static-light P-wave DAG for this kappa role only")
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
     a = p.parse_args()
