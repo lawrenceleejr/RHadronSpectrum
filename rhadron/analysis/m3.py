@@ -77,7 +77,27 @@ def energy_jk(c, meta, binsize, t0, tmax, onset=True):
             "window": [best["tmin"], best["tmax"]], "chi2dof": best["chi2"] / max(best["dof"], 1)}
 
 
-def run(qdir, binsize=2, out=None, onset=True, exclude_exceptional=False):
+def load_nucleon_matrix(qdir, role):
+    """Source-averaged smeared x smeared nucleon matrices [ncfg, t, snk, src] from *_nuc_<role>.h5."""
+    rows = []
+    for f in sorted(glob.glob(os.path.join(qdir, f"*_nuc_{role}.h5"))):
+        with h5py.File(f, "r") as h:
+            ks = [k for k in h.keys()]
+            mats = [h[f"{k}/N"][...] for k in ks if f"{k}/N" in h]
+            if not mats:
+                continue
+            cid = int(h.attrs["cfg_id"])
+            sc = (cid // 10000, cid % 10000)
+            if sc in EXCLUDE:
+                continue
+            rows.append((sc, np.mean(mats, axis=0)))
+    if len(rows) < 10:
+        return None, None
+    rows.sort(key=lambda r: r[0])
+    return np.array([r[1] for r in rows]), [(r[0][0], r[0][1], 0.0) for r in rows]
+
+
+def run(qdir, binsize=2, out=None, onset=True, exclude_exceptional=True, nucleon_matrix=True):
     files = sorted(glob.glob(os.path.join(qdir, "*_quark.h5")))
     EXCLUDE.clear()
     if exclude_exceptional:
@@ -88,8 +108,16 @@ def run(qdir, binsize=2, out=None, onset=True, exclude_exceptional=False):
     for role, ref in UKQCD.items():
         res["light"][role] = {}
         for h, tmax in (("pi", 18), ("rho", 16), ("N", 16)):
-            c, meta = load(files, f"light/{role}/{h}")
-            r = energy_jk(c, meta, binsize, 2, tmax, onset)
+            if h == "N" and nucleon_matrix:
+                c, meta = load_nucleon_matrix(qdir, role)
+                if c is None:
+                    ok = False
+                    continue
+                pc, _ = principal_correlator(0.5 * (c + np.conj(c.swapaxes(2, 3))).real, 1, 2)
+                r = energy_jk(pc, meta, binsize, 1, tmax, onset)
+            else:
+                c, meta = load(files, f"light/{role}/{h}")
+                r = energy_jk(c, meta, binsize, 2, tmax, onset)
             if r is None:
                 ok = False
                 continue
@@ -193,7 +221,8 @@ def run(qdir, binsize=2, out=None, onset=True, exclude_exceptional=False):
 
 if __name__ == "__main__":
     import sys
-    r = run(sys.argv[1], out=sys.argv[2] if len(sys.argv) > 2 else None, exclude_exceptional="--exclude-exceptional" in sys.argv)
+    r = run(sys.argv[1], out=sys.argv[2] if len(sys.argv) > 2 else None,
+            exclude_exceptional="--no-exclusion" not in sys.argv, nucleon_matrix="--point-sink-nucleon" not in sys.argv)
     print("excluded:", r["excluded"])
     for role, d in r["light"].items():
         for h, v in d.items():
