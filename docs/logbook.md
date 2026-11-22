@@ -195,3 +195,21 @@ Decisions taken from it:
   density (J = γ4) exactly opposite on quark vs antiquark line (γ5-hermiticity, degenerate u/d);
   matter density (J = 1) same sign on both lines, as expected.  Profiles need ensemble statistics.
 - Plan: enable `densities: true` for Stage B quark production (final visualisation).
+
+## 2026-11-22 — M3 gate, attempt 1: FAILED (nucleon); attempt-2 method pre-registered
+
+- 49 qA60 configs (every 4th), results/qA60_M3.json.  π, ρ at all three κ agree with UKQCD 32³×64
+  (pulls −0.6 … +1.0).  Static-light P₋ − S: 418(84), 443(88), 438(74) MeV; chiral (linear in
+  (a m_π)²) 455(127) MeV vs BGR 435(17): pull +0.16.  Heavy-spin partners (Γ = 1 vs γ5γ_x) give
+  identical energies (exact for a static quark).
+- Nucleon: a m_N = 0.897(20), 0.791(20), 0.722(20) vs UKQCD 0.799, 0.700, 0.641: pulls +4.4, +3.7,
+  +2.9 → gate fails.  Diagnosis: effective mass drifts down 0.90–0.96 (t = 4–8) → 0.84–0.88
+  (t = 9–13), i.e. excited-state contamination (smeared source, point sink); the AIC average was
+  dominated by early, precise windows (χ²/dof ≈ 0.8 cannot detect the drift).  No sign of a
+  contraction error (π, ρ agree; nucleon contraction unit-tested against the general Wick tensor).
+- Attempt 2, fixed now, before evaluation, and applied to every channel (incl. the blinded
+  R-hadrons): (i) plateau-onset rule — t_min per channel is the first t such that
+  |m_eff(t) − m_eff(t+2)| < σ for two consecutive t, from the jackknife effective mass; windows
+  start at or after it; (ii) full 101-config M3 set.  Static-light P₊ (j = 3/2) needs a
+  covariant-derivative operator: not tested by this gate, to be added before M4 conclusions.
+- If attempt 2 fails, this is reported to the originating session (two honest attempts).

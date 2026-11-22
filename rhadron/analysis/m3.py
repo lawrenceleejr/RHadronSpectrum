@@ -1,0 +1,138 @@
+"""M3 gate: light hadrons and fundamental static-light splittings on quenched β = 6.0 (qA60).
+
+Light hadrons (per κ): AIC-averaged single-exponential fits of the zero-momentum π, ρ, N correlators
+(smeared source, point sink, averaged over the 8 sources per configuration), compared to UKQCD
+hep-lat/9910022 32³×64 (docs/references.md).  Static-light: GEVP (2 smearing levels) principal
+correlators for S (γ5) and P₋ (Γ = 1; and γ5γ_x as the degenerate heavy-spin partner, a static-limit
+check); P₋ − S per κ from correlated jackknife differences, chirally extrapolated linearly in
+(a m_π)² and compared to BGR 0809.1103 (quenched) 435(15)(9) MeV.  a⁻¹ from r0 = 0.5 fm, r0/a = 5.369.
+"""
+import glob
+import json
+import os
+
+import h5py
+import numpy as np
+
+from .gluelump import aic_weights, binned, fit_windows, plateau_onset, principal_correlator
+
+UKQCD = {  # a m_pi, a m_V, a m_N (32^3 x 64), asymmetric errors symmetrised (max)
+    "l1": {"kappa": 0.13344, "pi": (0.3952, 0.0016), "rho": (0.5400, 0.0047), "N": (0.799, 0.010)},
+    "l2": {"kappa": 0.13417, "pi": (0.3048, 0.0013), "rho": (0.4887, 0.0061), "N": (0.700, 0.015)},
+    "l3": {"kappa": 0.13455, "pi": (0.2457, 0.0014), "rho": (0.4636, 0.0088), "N": (0.641, 0.020)},
+}
+BGR_PM_S = (435.0, np.hypot(15, 9))
+R0A, R0_FM, HBARC = 5.369, 0.5, 197.327
+
+
+def ainv_mev():
+    return R0A * HBARC / R0_FM
+
+
+def load(files, key):
+    rows = []
+    for f in files:
+        with h5py.File(f, "r") as h:
+            if key in h:
+                rows.append((int(h.attrs["stream"]), int(h.attrs["cfg"]), h[key][...]))
+    rows.sort(key=lambda r: (r[0], r[1]))
+    meta = [(r[0], r[1], 0.0) for r in rows]
+    return np.array([r[2] for r in rows]), meta
+
+
+def energy_jk(c, meta, binsize, t0, tmax, onset=True):
+    pc = binned(c.real, meta, binsize)
+    tfl = plateau_onset(pc, t0 + 1, tmax) if onset else None
+    wins = fit_windows(pc, t0, tmax, tmin_floor=tfl)
+    if not wins:
+        return None
+    w = aic_weights(wins)
+    E = float(np.sum(w * np.array([x["E"] for x in wins])))
+    Ej = np.sum(w[:, None] * np.array([x["Ej"] for x in wins]), axis=0)
+    n = len(Ej)
+    stat = float(np.sqrt((n - 1) / n * np.sum((Ej - Ej.mean()) ** 2)))
+    syst = float(np.sqrt(np.sum(w * (np.array([x["E"] for x in wins]) - E) ** 2)))
+    best = wins[int(np.argmax(w))]
+    return {"E": E, "stat": stat, "syst": syst, "err": float(np.hypot(stat, syst)), "Ej": Ej, "tmin_onset": tfl,
+            "window": [best["tmin"], best["tmax"]], "chi2dof": best["chi2"] / max(best["dof"], 1)}
+
+
+def run(qdir, binsize=2, out=None, onset=True):
+    files = sorted(glob.glob(os.path.join(qdir, "*_quark.h5")))
+    res = {"ncfg": len(files), "binsize": binsize, "ainv_MeV": ainv_mev(), "light": {}, "staticlight": {},
+           "gate": {}}
+    ok = True
+    for role, ref in UKQCD.items():
+        res["light"][role] = {}
+        for h, tmax in (("pi", 18), ("rho", 16), ("N", 16)):
+            c, meta = load(files, f"light/{role}/{h}")
+            r = energy_jk(c, meta, binsize, 2, tmax, onset)
+            if r is None:
+                ok = False
+                continue
+            v, e = ref[h]
+            pull = (r["E"] - v) / np.hypot(r["err"], e)
+            res["light"][role][h] = {k: r[k] for k in ("E", "stat", "syst", "err", "window", "chi2dof", "tmin_onset")}
+            res["light"][role][h].update({"ukqcd": v, "ukqcd_err": e, "pull": float(pull)})
+            ok &= abs(pull) <= 2.0
+    # static-light, HYP2
+    mpi2, dPM, dPMj = [], [], []
+    for role in UKQCD:
+        E = {}
+        for g in ("S_g5", "Pm_1", "Pp_g5gi"):
+            C, meta = load(files, f"HYP2/staticlight/{role}/{g}")
+            Cs = 0.5 * (C + np.conj(C.swapaxes(2, 3))).real
+            pc, nb = principal_correlator(Cs, 1, 2)
+            E[g] = energy_jk(pc, meta, binsize, 1, 10, onset)
+        if not all(E.values()):
+            ok = False
+            continue
+        d = E["Pm_1"]["Ej"] - E["S_g5"]["Ej"]
+        n = len(d)
+        dstat = float(np.sqrt((n - 1) / n * np.sum((d - d.mean()) ** 2)))
+        dE = E["Pm_1"]["E"] - E["S_g5"]["E"]
+        dsys = float(np.hypot(E["Pm_1"]["syst"], E["S_g5"]["syst"]))
+        deg = E["Pp_g5gi"]["E"] - E["Pm_1"]["E"]
+        res["staticlight"][role] = {"aE_S": E["S_g5"]["E"], "aE_Pm": E["Pm_1"]["E"], "aE_Pm_g5gi": E["Pp_g5gi"]["E"],
+                                    "a_dPmS": dE, "stat": dstat, "syst": dsys,
+                                    "MeV": dE * ainv_mev(), "MeV_err": float(np.hypot(dstat, dsys)) * ainv_mev(),
+                                    "heavy_spin_partner_diff_a": deg}
+        if role in res["light"] and "pi" in res["light"][role]:
+            mpi2.append(res["light"][role]["pi"]["E"] ** 2)
+            dPM.append(dE)
+            dPMj.append(np.hypot(dstat, dsys))
+    if len(mpi2) >= 2:
+        x, y, w = np.array(mpi2), np.array(dPM), 1 / np.array(dPMj) ** 2
+        A = np.vstack([np.ones_like(x), x]).T
+        cov = np.linalg.inv(A.T @ (A * w[:, None]))
+        p = cov @ (A.T @ (w * y))
+        chi = float(np.sum(w * (A @ p - y) ** 2))
+        val, err = p[0] * ainv_mev(), np.sqrt(cov[0, 0]) * ainv_mev()
+        pull = (val - BGR_PM_S[0]) / np.hypot(err, BGR_PM_S[1])
+        res["gate"]["PmS_chiral_MeV"] = [float(val), float(err)]
+        res["gate"]["PmS_chiral_fit_chi2"] = chi
+        res["gate"]["PmS_pull_vs_BGR"] = float(pull)
+        ok &= abs(pull) <= 2.0
+    else:
+        ok = False
+    res["gate"]["light_hadrons_all_within_2sigma"] = all(
+        abs(v["pull"]) <= 2 for r in res["light"].values() for v in r.values())
+    res["gate"]["passed"] = bool(ok)
+    res["gate"]["note"] = ("P+ (j=3/2) needs a covariant-derivative operator, not yet implemented; "
+                           "this gate tests S and P- (j=1/2+) and the light hadrons.")
+    if out:
+        json.dump(res, open(out, "w"), indent=1, default=float)
+    return res
+
+
+if __name__ == "__main__":
+    import sys
+    r = run(sys.argv[1], out=sys.argv[2] if len(sys.argv) > 2 else None)
+    for role, d in r["light"].items():
+        for h, v in d.items():
+            print(f"{role} {h:3s} aM={v['E']:.4f}({v['err']*1e4:.0f}) win={v['window']} chi2/dof={v['chi2dof']:.2f}"
+                  f"  UKQCD {v['ukqcd']}({v['ukqcd_err']*1e4:.0f})  pull {v['pull']:+.2f}")
+    for role, v in r["staticlight"].items():
+        print(f"{role} static-light: a dE(P- - S) = {v['a_dPmS']:.4f}  = {v['MeV']:.0f}({v['MeV_err']:.0f}) MeV;"
+              f"  heavy-spin partner diff {v['heavy_spin_partner_diff_a']:+.4f}")
+    print(json.dumps(r["gate"], indent=1))

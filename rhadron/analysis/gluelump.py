@@ -78,14 +78,34 @@ def principal_correlator(C, t0, td, eps=1e-3):
     return np.einsum("i,ctij,j->ct", v0, Cp, v0), P.shape[1]
 
 
-def fit_windows(samples, t0, tmax_avail, min_len=3):
+def plateau_onset(samples, t_first, tmax_avail):
+    """Pre-registered rule (logbook 2026-11-22): first t >= t_first with |m(t) - m(t+2)| < sigma for
+    two consecutive t, using jackknife effective masses.  Returns t_first if never satisfied."""
+    jk = jackknife_samples(samples)
+    n = len(jk)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        me = np.log(jk[:, :-1] / jk[:, 1:])
+    m = me.mean(axis=0)
+    ok = []
+    for t in range(t_first, min(tmax_avail - 2, me.shape[1] - 2)):
+        d = me[:, t] - me[:, t + 2]
+        sig = np.sqrt((n - 1) / n * np.sum((d - d.mean()) ** 2))
+        ok.append((t, bool(np.isfinite(sig) and abs(m[t] - m[t + 2]) < sig)))
+    for (t, a), (_, b) in zip(ok, ok[1:]):
+        if a and b:
+            return t
+    return t_first
+
+
+def fit_windows(samples, t0, tmax_avail, min_len=3, tmin_floor=None):
     """Correlated single-exp fits over windows; returns list of window results with jackknife E."""
     n = len(samples)
     jk = jackknife_samples(samples)
     mean = samples.mean(axis=0)
     cov = np.cov(samples, rowvar=False) / n
     out = []
-    for tmin in range(t0 + 1, tmax_avail - min_len + 2):
+    start = t0 + 1 if tmin_floor is None else max(t0 + 1, tmin_floor)
+    for tmin in range(start, tmax_avail - min_len + 2):
         for tmax in range(tmin + min_len - 1, tmax_avail + 1):
             t = np.arange(tmin, tmax + 1)
             if np.any(mean[t] <= 0):
