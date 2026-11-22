@@ -255,3 +255,7 @@ smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve 
   2. **Nucleon re-measurement**: smeared-source × smeared-sink 2×2 nucleon matrix (2 Wuppertal levels
      at both ends) on the same 105 configs for κ = l1, l2, l3; M3 gate attempt 3 uses the GEVP
      principal correlator of that matrix with the same plateau-onset rule and t_max = 16 (fixed now).
+- Gluelump analyses redone with the fixed fitter (ln A, 5 % shrinkage), bin 4, HYP2:
+  r0 (Λ̄(1⁻⁻) − Λ̄(1⁺⁻)) = 1.130(81) at β = 5.7 (1000 cfgs), 0.972(138) at β = 6.0 (600 cfgs, generation
+  complete).  Literature continuum 0.87(9) (HSW), 0.933(18) (FM).  M2 gate awaits β = 6.2.
+- Nucleon-matrix DAG 43223267 running (315 jobs, ~7 min each).
