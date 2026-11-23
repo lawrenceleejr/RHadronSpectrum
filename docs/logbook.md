@@ -259,3 +259,16 @@ smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve 
   r0 (Λ̄(1⁻⁻) − Λ̄(1⁺⁻)) = 1.130(81) at β = 5.7 (1000 cfgs), 0.972(138) at β = 6.0 (600 cfgs, generation
   complete).  Literature continuum 0.87(9) (HSW), 0.933(18) (FM).  M2 gate awaits β = 6.2.
 - Nucleon-matrix DAG 43223267 running (315 jobs, ~7 min each).
+
+## 2026-11-23 — M3 gate, attempt 3: FAILED (nucleon); excited-state hypothesis not supported
+
+- Smeared×smeared 2×2 nucleon GEVP (104 cfgs after exceptional exclusion; DAG 43223267 + rescue).
+  a m_N = 0.856(7), 0.753(6), 0.687(9) vs UKQCD 0.799, 0.700, 0.641 (QCDSF interpolates to ≈0.80,
+  0.71): pulls +4.6, +3.3, +2.1.  Effective mass of the principal correlator is FLAT: 0.84–0.86 for
+  t = 4–12 (κ = 0.13344), ≈0.69 for t = 4–10 (κ = 0.13455).  A persistent ~7 % excess, nucleon only;
+  π, ρ (all κ), static-light S/P₋/P₊ agree.  The flat plateau does not look like excited-state
+  contamination; a baryon-specific systematic or bug is not excluded (existing checks: fast nucleon ==
+  general Wick tensor at a site; colour-singlet SU(6) 56 Pauli pattern; operator ε(uᵀCγ5d)P₊u, C = γ_yγ_t).
+  Note a m_Δ at κ = 0.13344 is expected ≈ 0.87, uncomfortably close to our 0.856.
+- Blackwell (cc 12.0) GPUs excluded everywhere: no sm_120 CuPy kernels in the CUDA 12.4 images.
+- Reported to the user; M4 not started.
