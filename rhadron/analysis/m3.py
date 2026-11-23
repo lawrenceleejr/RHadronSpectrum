@@ -14,6 +14,7 @@ import os
 import h5py
 import numpy as np
 
+from ..apbc import site_series_signs
 from .gluelump import aic_weights, binned, fit_windows, plateau_onset, principal_correlator
 
 UKQCD = {  # a m_pi, a m_V, a m_N (32^3 x 64), asymmetric errors symmetrised (max)
@@ -77,13 +78,20 @@ def energy_jk(c, meta, binsize, t0, tmax, onset=True):
             "window": [best["tmin"], best["tmax"]], "chi2dof": best["chi2"] / max(best["dof"], 1)}
 
 
-def load_nucleon_matrix(qdir, role):
+def load_nucleon_matrix(qdir, role, name="N"):
     """Source-averaged smeared x smeared nucleon matrices [ncfg, t, snk, src] from *_nuc_<role>.h5."""
     rows = []
     for f in sorted(glob.glob(os.path.join(qdir, f"*_nuc_{role}.h5"))):
         with h5py.File(f, "r") as h:
-            ks = [k for k in h.keys()]
-            mats = [h[f"{k}/N"][...] for k in ks if f"{k}/N" in h]
+            ks = sorted(k for k in h.keys() if f"{k}/N" in h)
+            sites = json.loads(h.attrs["sites"])
+            legacy = int(h.attrs.get("apbc_unwrapped", 0)) == 0
+            mats = []
+            for k in ks:
+                m = h[f"{k}/{name}"][...]
+                if legacy:  # pre-fix data: apply the APBC sign of three wrapped quark lines
+                    m = m * site_series_signs(sites[int(k[3:])][3], m.shape[0], 48)[:, None, None]
+                mats.append(m)
             if not mats:
                 continue
             cid = int(h.attrs["cfg_id"])
@@ -178,7 +186,15 @@ def run(qdir, binsize=2, out=None, onset=True, exclude_exceptional=True, nucleon
                 srcs = sorted({k.split("/")[0] for k in ks})
                 if not srcs or any(f"{s_}/PpE" not in ks for s_ in srcs):
                     continue
-                avg = {c: np.mean([h[f"{s_}/{c}"][...] for s_ in srcs], axis=0) for c in ("S", "PmD", "PpE")}
+                sites = json.loads(h.attrs["sites"])
+                legacy = int(h.attrs.get("apbc_unwrapped", 0)) == 0
+
+                def corr(s_, c):
+                    v = h[f"{s_}/{c}"][...]
+                    if legacy:  # one wrapped light-quark line
+                        v = v * site_series_signs(sites[int(s_[3:])][3], v.shape[0], 48)
+                    return v
+                avg = {c: np.mean([corr(s_, c) for s_ in srcs], axis=0) for c in ("S", "PmD", "PpE")}
                 cid = int(h.attrs["cfg_id"])
                 rows.append(((cid // 10000, cid % 10000), avg))
         rows.sort(key=lambda r: r[0])

@@ -364,3 +364,29 @@ def test_baryon_suite_N1_equals_fast_nucleon():
     assert np.abs(c - light.nucleon(S)).max() < 1e-10 * np.abs(c).max()
     for k in ("N2", "Delta"):
         assert np.abs(light.baryon_corr({0: S, 1: S}, *suite[k], chunk=8)).max() > 0
+
+
+def test_apbc_unwrapping_translation_invariance():
+    """Source near the time boundary (wrapping) vs the time-translated configuration with the source at
+    t = 0 (no wrapping): unwrapped site series and baryon / static-light / meson correlators agree."""
+    from rhadron.apbc import site_series_signs
+    from rhadron.contract import light
+    from rhadron.measure_quark import _site_series
+    rng = np.random.default_rng(61)
+    U = random_gauge(SHAPE, rng, eps=0.4)
+    Lt, t0, tmax = SHAPE[0], 6, 4
+    x0 = (1, 2, 0, t0)
+    V = np.roll(U, -t0, axis=1)  # V(t) = U(t + t0)
+    SA = point_propagator(U, KAPPA, CSW, x0)
+    SB = point_propagator(V, KAPPA, CSW, (1, 2, 0, 0))
+    a, b = _site_series(SA, x0, tmax), _site_series(SB, (1, 2, 0, 0), tmax)
+    assert np.abs(a - b).max() < 1e-8 * np.abs(b).max()
+    WA = wilson_lines(U[3], t0, tmax)[:, 0, 2, 1]
+    WB = wilson_lines(V[3], 0, tmax)[:, 0, 2, 1]
+    ca, cb = hadron.static_light(qo.G5, a, WA), hadron.static_light(qo.G5, b, WB)
+    assert np.abs(ca - cb).max() < 1e-8 * np.abs(cb).max()
+    na = light.nucleon(SA, t0=t0) * site_series_signs(t0, Lt, Lt)
+    nb = light.nucleon(SB, t0=0)
+    assert np.abs(na[:tmax + 1] - nb[:tmax + 1]).max() < 1e-8 * np.abs(nb).max()
+    pa, pb = light.meson(SA, qo.G5, t0=t0), light.meson(SB, qo.G5, t0=0)  # mesons need no sign
+    assert np.abs(pa - pb).max() < 1e-8 * np.abs(pb).max()

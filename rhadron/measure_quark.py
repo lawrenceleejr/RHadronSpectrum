@@ -13,6 +13,7 @@ import time
 
 import numpy as np
 
+from .apbc import site_series_signs
 from .backend import get_xp, to_numpy
 from .contract import hadron, light
 from .gamma import G
@@ -63,7 +64,9 @@ def _site_series(S, x0, tmax):
     x, y, z, t0 = x0
     Lt = S.shape[0]
     idx = [(t0 + t) % Lt for t in range(tmax + 1)]
-    return S[idx, z, y, x].copy()  # [tmax+1, 4, 3, 4, 3] (stays on the device)
+    xp = get_xp(S)
+    sgn = xp.asarray(site_series_signs(t0, tmax + 1, Lt))[:, None, None, None, None]
+    return sgn * S[idx, z, y, x]  # unwrapped (APBC sign), [tmax+1, 4, 3, 4, 3]
 
 
 def run(U_np, qcfg, cfg_id, log=print):
@@ -152,7 +155,8 @@ def _sink_smeared_site(Usm, S, x0, tmax, lev):
     idx = [(t0 + t) % Lt for t in range(tmax + 1)]
     sub = cp.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)  # colour last
     sub = wuppertal_cols(Usm[:3, idx], sub, lev[0], lev[1])
-    return sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(S.dtype)  # -> [t, s, a, s0, a0]
+    sgn = cp.asarray(site_series_signs(t0, tmax + 1, Lt))[:, None, None, None, None]
+    return sgn * sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(S.dtype)  # unwrapped, [t, s, a, s0, a0]
 
 
 def contract_all(site, sites, W, roles, smears, tmax, qcfg):
@@ -288,8 +292,11 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
                 done[f"src{isrc}/slice_tau"] = to_numpy(Ssrc[tau].reshape(-1, 4, 3, 4, 3))
                 if member == 1:
                     x0 = sites[2 * pair]
-                    Sy0 = cp.asarray(done[f"src{2 * pair}/slice_tau"])
-                    Sy1 = Ssrc[tau].reshape(-1, 4, 3, 4, 3)
+                    from .apbc import sign as apbc_sign
+                    t0u = sites[2 * pair][3]
+                    tau_u, t1_u = t0u + tau_off, t0u + sep
+                    Sy0 = apbc_sign(t0u, tau_u, Lt) * cp.asarray(done[f"src{2 * pair}/slice_tau"])
+                    Sy1 = apbc_sign(t1_u, tau_u, Lt) * Ssrc[tau].reshape(-1, 4, 3, 4, 3)
                     S10 = cp.asarray(done[f"src{2 * pair}/S_0_0"][sep])  # S(x1 <- x0), smeared both ends
                     Wl = wilson_lines(V4, x0[3], sep)[sep, x0[2], x0[1], x0[0]]
                     for cname, Gam in (("g5", qo.G5), ("gx", G[0])):
@@ -304,7 +311,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
                 done[f"src{isrc}/light_rho"] = to_numpy(sum(light.meson(Ssrc, G[i], t0=x0[3]) for i in range(3)) / 3)
                 done[f"src{isrc}/light_a0"] = to_numpy(light.meson(Ssrc, qo.ONE, t0=x0[3]))
                 t = lap("light mesons", t)
-                done[f"src{isrc}/light_N"] = to_numpy(light.nucleon(Ssrc, t0=x0[3]))
+                done[f"src{isrc}/light_N"] = to_numpy(light.nucleon(Ssrc, t0=x0[3])) * site_series_signs(x0[3], Lt, Lt)
                 t = lap("nucleon", t)
             del Ssrc
         tmp = outpath + ".tmp"
@@ -315,6 +322,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             f.attrs["kappa"] = qcfg["kappas"][role]
             f.attrs["sites"] = _json.dumps(sites)
             f.attrs["cfg_id"] = cfg_id
+            f.attrs["apbc_unwrapped"] = 1
         _os.replace(tmp, outpath)
         log(f"[{role}] source {isrc} saved ({time.time() - t_all:.0f}s elapsed)", flush=True)
     return outpath
@@ -339,6 +347,8 @@ def contract_from_files(U_np, qcfg, role_files, log=print):
             role = str(f.attrs["role"])
             roles.append(role)
             sites = _json.loads(f.attrs["sites"])
+            legacy = int(f.attrs.get("apbc_unwrapped", 0)) == 0  # pre-fix files: apply APBC signs here
+            Lt_ = U_np.shape[1]
             keys = []
             f.visititems(lambda name, obj: keys.append(name) if isinstance(obj, h5py.Dataset) else None)
             for k in keys:
@@ -346,11 +356,16 @@ def contract_from_files(U_np, qcfg, role_files, log=print):
                 if not src.startswith("src"):
                     continue  # pair*/dens_* (density maps) are analysed separately
                 isrc = int(src[3:])
+                v = f[k][...]
                 if name.startswith("S_"):
                     il, jl = map(int, name[2:].split("_"))
-                    site[(role, isrc, il, jl)] = xp.asarray(f[k][...])
+                    if legacy:
+                        v = v * site_series_signs(sites[isrc][3], v.shape[0], Lt_)[:, None, None, None, None]
+                    site[(role, isrc, il, jl)] = xp.asarray(v)
                 elif name.startswith("light_"):
-                    site.setdefault(("light", role, name[6:]), []).append(f[k][...])
+                    if legacy and name == "light_N":
+                        v = v * site_series_signs(sites[isrc][3], v.shape[0], Lt_)
+                    site.setdefault(("light", role, name[6:]), []).append(v)
     nsrc = min(len({k[1] for k in site if k[0] == r}) for r in roles)
     sites = sites[:nsrc]
     U = xp.asarray(U_np)
@@ -419,8 +434,10 @@ def pwave_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             sub = cp.ascontiguousarray(S[idx].transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)
             return wuppertal_cols(Usm[:3, idx], sub, lev[0], lev[1])  # [t, z, y, x, s, s0, a0, a]
 
+        sgn_t = cp.asarray(site_series_signs(t0, tmax + 1, Lt))[:, None, None, None, None]
+
         def at_site(sub):
-            return sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(cp.complex128)  # [t, s, a, s0, a0]
+            return sgn_t * sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(cp.complex128)  # unwrapped
 
         t1 = time.time()
         sub0 = solve_from(col.astype(cp.complex128))
@@ -445,6 +462,7 @@ def pwave_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
             f.attrs["kappa"] = qcfg["kappas"][role]
             f.attrs["sites"] = _json.dumps(sites)
             f.attrs["cfg_id"] = cfg_id
+            f.attrs["apbc_unwrapped"] = 1
         _os.replace(tmp, outpath)
         log(f"[pw {role}] source {isrc}: 48 solves + contractions {time.time() - t1:.0f}s", flush=True)
     return outpath
@@ -495,9 +513,10 @@ def nucleon_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print, tmax_
                 sm = cp.ascontiguousarray(sub.transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)
                 sm = wuppertal_cols(Usm[:3, idx], sm, lev2[0], lev2[1]).transpose(0, 1, 2, 3, 4, 7, 5, 6)
                 smd = sm.astype(cp.complex128)
-                N[:, jl, il] = to_numpy(light.nucleon(smd, t0=0))
+                sg = site_series_signs(x0[3], tmax_n + 1, Lt)  # three wrapped quark lines: (-1)^3
+                N[:, jl, il] = to_numpy(light.nucleon(smd, t0=0)) * sg
                 for k, (Fc, Fbc) in suite.items():
-                    B[k][:, jl, il] = to_numpy(light.baryon_corr({0: smd, 1: smd}, Fc, Fbc))
+                    B[k][:, jl, il] = to_numpy(light.baryon_corr({0: smd, 1: smd}, Fc, Fbc)) * sg
             del Ssrc, sub
         done[f"src{isrc}/N"] = N
         for k, v in B.items():
@@ -510,6 +529,7 @@ def nucleon_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print, tmax_
             f.attrs["kappa"] = qcfg["kappas"][role]
             f.attrs["sites"] = _json.dumps(sites)
             f.attrs["cfg_id"] = cfg_id
+            f.attrs["apbc_unwrapped"] = 1
         _os.replace(tmp, outpath)
         log(f"[nuc {role}] source {isrc}: {time.time() - t1:.0f}s", flush=True)
     return outpath

@@ -203,6 +203,17 @@ def quark_dag(a):
     n = 0
     for c in cfgs:
         name = os.path.basename(c)[:-3]
+        if a.contract_only:
+            props = [os.path.join(qdir, "out", f"{name}_prop_{r}.h5") for r in roles]
+            if not all(os.path.exists(p) for p in props) or os.path.exists(os.path.join(qdir, "out", name + "_quark.h5")):
+                continue
+            cnode = f"c_{name}"
+            lines.append(f"JOB {cnode} {dagdir}/contract.sub")
+            lines.append(f'VARS {cnode} NODE="{cnode}" INPUTS="{",".join([os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml"), c] + props)}" '
+                         f'ARGS="contract --ensemble ens.yaml --config {os.path.basename(c)} --props {" ".join(os.path.basename(p) for p in props)} --outdir out"')
+            lines.append(f"RETRY {cnode} 3")
+            n += 1
+            continue
         if a.nucleon_roles:
             if not os.path.exists(os.path.join(qdir, "out", name + "_quark.h5")):
                 continue  # same configuration set as the M3 quark data
@@ -322,6 +333,7 @@ def main():
     qd.add_argument("--every", type=int, default=1, help="use every n-th configuration")
     qd.add_argument("--limit", type=int, default=0)
     qd.add_argument("--pwave-role", default=None, help="static-light P-wave DAG for this kappa role only")
+    qd.add_argument("--contract-only", action="store_true", help="contraction nodes only (from existing prop files)")
     qd.add_argument("--nucleon-roles", default=None, help="smeared-sink nucleon DAG for these roles (comma list)")
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
