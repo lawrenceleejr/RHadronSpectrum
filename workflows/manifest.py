@@ -315,7 +315,7 @@ def main():
     qd.add_argument("ensemble")
     qd.add_argument("--image-quda", required=True)
     qd.add_argument("--image-gen", required=True)
-    qd.add_argument("--gpureq", default="(Capability >= 7.0) && (GlobalMemoryMb >= 20000)")  # CuPy pool peaks ~22 GB
+    qd.add_argument("--gpureq", default="(Capability >= 7.0) && (GlobalMemoryMb >= 20000) && (Capability < 10.0)")  # no sm_120 kernels in the CUDA 12.4 image
     qd.add_argument("--mem", default="8GB")
     qd.add_argument("--disk", default="12GB")
     qd.add_argument("--maxjobs", type=int, default=20)
