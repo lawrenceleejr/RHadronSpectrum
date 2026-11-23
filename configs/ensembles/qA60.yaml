@@ -29,4 +29,5 @@ quark:                       # M3/M4 valence sector (NP clover, ALPHA c_SW at be
   no_multigrid: true         # mixed BiCGStab faster at beta=6.0 heavy kappas (docs/budget.md)
   static_actions: [HYP2, HYP1]
   seed: 61
+  baryon_suite: true         # M3 nucleon cross-checks (N1 general path, N2, Delta) in nucleon jobs
   pair_sep: 12               # paired sources at the same spatial site (three-point densities)

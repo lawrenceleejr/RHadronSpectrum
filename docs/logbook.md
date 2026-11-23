@@ -272,3 +272,14 @@ smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve 
   Note a m_Δ at κ = 0.13344 is expected ≈ 0.87, uncomfortably close to our 0.856.
 - Blackwell (cc 12.0) GPUs excluded everywhere: no sm_120 CuPy kernels in the CUDA 12.4 images.
 - Reported to the user; M4 not started.
+
+## 2026-11-23 — Nucleon investigation (user: "keep going until trustworthy")
+
+- Free-field check: forward propagation ∝ (1+γ4)/2 in our convention (parity projector correct).
+- New independent site-vectorised general baryon contraction (`light.baryon_corr`), == fast nucleon.
+- Cross-check measurement on 40 qA60 configs, κ = 0.13344 (largest discrepancy): 2×2 smeared
+  matrices for N1 (Cγ5, both code paths), N2 (Cγ4γ5) and Δ⁺⁺ (Cγ_k, spin-3/2 projected).
+  Decision criteria (fixed now): N1 and N2 ground states must agree; m_Δ − m_N must be clearly
+  positive (expected a(m_Δ − m_N) ≈ 0.07 at m_π ≈ 840 MeV).  If our "N" ≈ our Δ → operator/
+  contraction problem; if N1 ≈ N2 < Δ with the 7 % excess intact → treat as a genuine
+  method/systematic difference and investigate the comparison (volume, fit, smearing) instead.

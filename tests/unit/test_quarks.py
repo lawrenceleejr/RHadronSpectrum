@@ -339,3 +339,28 @@ def test_smeared_sink_nucleon_transposes():
         for a0 in range(3):
             ref[..., s0, a0] = wuppertal(U, S[..., s0, a0], 0.25, 2)
     assert np.abs(light.nucleon(sm) - light.nucleon(ref[idx])).max() < 1e-10 * np.abs(light.nucleon(ref[idx])).max()
+
+
+def test_baryon_corr_general_matches_fast_nucleon():
+    """Independent site-vectorised Wick code == fast nucleon (same operator, two flavours u, d)."""
+    from rhadron.contract import light
+    rng = np.random.default_rng(51)
+    sh = (3, 2, 2, 2)
+    S = rng.normal(size=sh + (4, 3, 4, 3)) + 1j * rng.normal(size=sh + (4, 3, 4, 3))
+    F = np.zeros((1, 4, 36, 36, 36), dtype=complex)
+    F[0, :, 0:12, 12:24, 0:12] = light.nucleon_tensor()
+    Fb = qo.baryon_bar(F)
+    c = light.baryon_corr({0: S, 1: S}, hadron.flavour_components(F), hadron.flavour_components(Fb), chunk=3)
+    assert np.abs(c - light.nucleon(S)).max() < 1e-10 * np.abs(c).max()
+
+
+def test_baryon_suite_N1_equals_fast_nucleon():
+    from rhadron.contract import light
+    rng = np.random.default_rng(52)
+    sh = (3, 2, 2, 2)
+    S = rng.normal(size=sh + (4, 3, 4, 3)) + 1j * rng.normal(size=sh + (4, 3, 4, 3))
+    suite = light.baryon_suite_tensors()
+    c = light.baryon_corr({0: S, 1: S}, *suite["N1"], chunk=8)
+    assert np.abs(c - light.nucleon(S)).max() < 1e-10 * np.abs(c).max()
+    for k in ("N2", "Delta"):
+        assert np.abs(light.baryon_corr({0: S, 1: S}, *suite[k], chunk=8)).max() > 0

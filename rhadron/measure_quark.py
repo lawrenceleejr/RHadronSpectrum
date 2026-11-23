@@ -479,22 +479,29 @@ def nucleon_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print, tmax_
     Usm = ape_spatial(U.astype(cp.complex64), qcfg["link_smear"]["alpha"], qcfg["link_smear"]["n"])
     d = Q.make_dirac(li, gauge, qcfg["kappas"][role], qcfg["csw"], tol=qcfg["tol"], maxiter=qcfg["maxiter"],
                      multigrid=qcfg.get("multigrid") if not qcfg.get("no_multigrid") else None)
+    suite = light.baryon_suite_tensors() if qcfg.get("baryon_suite") else {}
     log(f"[nuc {role}] setup {time.time() - t_all:.0f}s", flush=True)
     for isrc, x0 in enumerate(sites):
-        if f"src{isrc}/N" in done:
+        if f"src{isrc}/N" in done and all(f"src{isrc}/{k}" in done for k in suite):
             continue
         t1 = time.time()
         idx = [(x0[3] + t) % Lt for t in range(tmax_n + 1)]
         N = np.zeros((tmax_n + 1, nl, nl), dtype=complex)
+        B = {k: np.zeros((tmax_n + 1, nl, nl), dtype=complex) for k in suite}
         for il, lev in enumerate(smears):
             Ssrc = _solve_smeared_source(Q, li, d, Usm, x0, lev)
             sub = Ssrc[idx]  # [t, z, y, x, s, a, s0, a0]
             for jl, lev2 in enumerate(smears):
                 sm = cp.ascontiguousarray(sub.transpose(0, 1, 2, 3, 4, 6, 7, 5)).astype(Usm.dtype)
                 sm = wuppertal_cols(Usm[:3, idx], sm, lev2[0], lev2[1]).transpose(0, 1, 2, 3, 4, 7, 5, 6)
-                N[:, jl, il] = to_numpy(light.nucleon(sm.astype(cp.complex128), t0=0))
+                smd = sm.astype(cp.complex128)
+                N[:, jl, il] = to_numpy(light.nucleon(smd, t0=0))
+                for k, (Fc, Fbc) in suite.items():
+                    B[k][:, jl, il] = to_numpy(light.baryon_corr({0: smd, 1: smd}, Fc, Fbc))
             del Ssrc, sub
         done[f"src{isrc}/N"] = N
+        for k, v in B.items():
+            done[f"src{isrc}/{k}"] = v
         tmp = outpath + ".tmp"
         with h5py.File(tmp, "w") as f:
             for k, v in done.items():

@@ -60,3 +60,53 @@ def nucleon(S, t0=0):
         exch = xp.einsum("rvabC,vCc,rcba->", Y, U, Fb)  # u1 <-> u2 exchange at the source
         out[t] = direct - exch
     return xp.roll(out, -t0)
+
+
+def baryon_corr(S_by_flavour, Fc, Fbc, chunk=1024):
+    """General zero-momentum baryon correlator from flavour-decomposed operator tensors
+    (rhadron.contract.hadron.flavour_components of a colour-SINGLET baryon_tensor / baryon_bar):
+        C(t) = sum_x sum_rho <O_rho(x, t) O_rho(0)^dag>,
+    all Wick contractions with flavour-consistent permutations (same conventions as rbaryon_block).
+    S_by_flavour[f]: [t, z, y, x, 4, 3, 4, 3].  Independent code path from `nucleon`."""
+    from itertools import permutations
+
+    xp = get_xp(next(iter(S_by_flavour.values())))
+    perms = [(p, int(round(np.linalg.det(np.eye(3)[list(p)])))) for p in permutations(range(3))]
+    Fc = {k: xp.asarray(v[0]) for k, v in Fc.items()}  # drop the (singlet) colour-adjoint axis
+    Fbc = {k: xp.asarray(v[0]) for k, v in Fbc.items()}
+    S0 = next(iter(S_by_flavour.values()))
+    Lt = S0.shape[0]
+    P = {f: S.reshape(Lt, -1, 12, 12) for f, S in S_by_flavour.items()}
+    V = P[next(iter(P))].shape[1]
+    out = xp.zeros(Lt, dtype=complex)
+    for t in range(Lt):
+        for v0 in range(0, V, chunk):
+            sl = slice(v0, min(V, v0 + chunk))
+            for fl, Fa in Fc.items():
+                X = xp.einsum("rABC,vAa->vraBC", Fa, P[fl[0]][t, sl])
+                X = xp.einsum("vraBC,vBb->vrabC", X, P[fl[1]][t, sl])
+                X = xp.einsum("vrabC,vCc->vrabc", X, P[fl[2]][t, sl])
+                for flb, Fb in Fbc.items():
+                    for p, sg in perms:
+                        if any(fl[i] != flb[p[i]] for i in range(3)):
+                            continue
+                        Fbp = xp.transpose(Fb, (0,) + tuple(1 + p[i] for i in range(3)))
+                        out[t] += sg * xp.einsum("vrabc,rabc->", X, Fbp)
+    return out
+
+
+def baryon_suite_tensors():
+    """Colour-singlet zero-momentum baryon operators for the M3 nucleon cross-checks:
+       N1 = eps (u^T C g5 d) P+ u,  N2 = eps (u^T C g4 g5 d) P+ u,  Delta++ = eps (u^T C g_k u) P+ P^{3/2}_{ik} u.
+    Returns {name: (flavour components of F, of Fbar)} on the 3-flavour index space."""
+    from ..contract.hadron import flavour_components
+    from ..operators import quark_ops as qo
+    out = {}
+    for name, D in (("N1", CC @ G5), ("N2", CC @ G[3] @ G5)):
+        F = np.zeros((1, 4, 36, 36, 36), dtype=complex)
+        T = np.einsum("abc,st,ru->rsatbuc", EPS, D, P_PLUS).reshape(4, 12, 12, 12)
+        F[0, :, 0:12, 12:24, 0:12] = T
+        out[name] = (flavour_components(F), flavour_components(qo.baryon_bar(F)))
+    F = qo.baryon_tensor("singlet", "uuu", "Cgi", "3/2")
+    out["Delta"] = (flavour_components(F), flavour_components(qo.baryon_bar(F)))
+    return out
