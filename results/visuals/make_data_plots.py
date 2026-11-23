@@ -122,7 +122,7 @@ def good_files(tag, fix="c7187ab"):
     return out
 
 
-def level_diagram_from_json(path, tag, r0a, beta):
+def level_diagram_from_json(path, tag, r0a, beta, a_fm=None, max_err=0.5):
     import json
     res = json.load(open(path))
     fig, ax = plt.subplots(figsize=(4.6, 3.2))
@@ -131,7 +131,12 @@ def level_diagram_from_json(path, tag, r0a, beta):
              "T2g-": "$2^{+-}$", "Eg-": "$2^{+-}$", "A2g-": "$3^{+-}$", "A1g+": "$0^{++}$",
              "Eg+": "$2^{++}$", "T2u+": "$2^{-+}$"}
     xs, ys = [], []
-    for i, k in enumerate([k for k in order if res["channels"].get(k, {}).get("ok")]):
+    def usable(k):
+        c = res["channels"].get(k, {})
+        return c.get("ok") and r0a * float(np.hypot(c.get("a_dE_stat", 9), c.get("a_dE_syst", 9))) <= max_err
+
+    dropped = [k for k in order if res["channels"].get(k, {}).get("ok") and not usable(k)]
+    for i, k in enumerate([k for k in order if usable(k)]):
         c = res["channels"][k]
         y = r0a * c["a_dE"]
         dy = r0a * float(np.hypot(c["a_dE_stat"], c["a_dE_syst"]))
@@ -145,20 +150,22 @@ def level_diagram_from_json(path, tag, r0a, beta):
     ax.plot([0.68, 1.32], [hsw, hsw], color=ACC, lw=0.8, ls=(0, (3, 2)))
     ax.annotate("continuum lit.", (1.32, hsw), xytext=(3, 0), textcoords="offset points", fontsize=6, color=ACC,
                 va="center")
-    ks = [k for k in order if res["channels"].get(k, {}).get("ok")]
+    ks = [k for k in order if usable(k)]
     ax.set_xticks(range(len(ks)))
     ax.set_xticklabels([f"{k[:-1]}{k[-1]}" for k in ks], fontsize=6, rotation=0)
     ax.tick_params(axis="x", length=0)
     ax.set_ylabel("$r_0\\,(\\bar\\Lambda - \\bar\\Lambda_{1^{+-}})$")
-    ax.set_title(f"Gluelump levels, $\\beta = {beta}$ ($a \\approx 0.17$ fm), {res['ncfg']} cfgs, HYP2", loc="left",
-                 fontsize=8)
+    sp = f" ($a \\approx {a_fm}$ fm)" if a_fm else ""
+    ax.set_title(f"Gluelump levels, $\\beta = {beta}${sp}, {res['ncfg']} cfgs, HYP2", loc="left", fontsize=8)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_bounds(min(ys), max(ys))
     ax.spines["left"].set_position(("outward", 4))
-    ax.text(0.0, -0.14, "single lattice spacing: not continuum extrapolated", transform=ax.transAxes, fontsize=6,
-            color=GREY)
+    note = "single lattice spacing: not continuum extrapolated"
+    if dropped:
+        note += f"; not shown (error above {max_err}/r0): " + ", ".join(dropped)
+    ax.text(0.0, -0.14, note, transform=ax.transAxes, fontsize=6, color=GREY)
     return save_pdf(fig, os.path.join(OUT, f"levels_{tag}.pdf"))
 
 
