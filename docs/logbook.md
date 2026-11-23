@@ -283,3 +283,23 @@ smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve 
   positive (expected a(m_Δ − m_N) ≈ 0.07 at m_π ≈ 840 MeV).  If our "N" ≈ our Δ → operator/
   contraction problem; if N1 ≈ N2 < Δ with the 7 % excess intact → treat as a genuine
   method/systematic difference and investigate the comparison (volume, fit, smearing) instead.
+
+## 2026-11-23 — ROOT CAUSE FOUND: antiperiodic-boundary sign of wrapped quark propagators
+
+- UKQCD Table VI verified directly from the PDF text (hep-lat/9910022v3): a m_N = 0.799/0.700/0.641,
+  a m_Δ = 0.899/0.818/0.781 (32³×64, β = 6.0 NP).
+- Diagnosis: per-source nucleon correlators flip sign exactly at t = L_t − t0.  QUDA uses antiperiodic
+  temporal BCs (t_boundary = −1), so a propagator wrapping past t = L_t carries (−1); contractions were
+  written for unwrapped propagators.  Mesons (2 lines) are unaffected (why π, ρ agreed); baryons
+  (3 lines) and static-light / R-baryons (odd number of light lines) were biased: wrapped sources
+  subtract at late t → effective masses too high.  Gluelumps and R-mesons unaffected.
+- Fix (`rhadron/apbc.py`): every extracted propagator multiplied by (−1)^(boundary crossings);
+  new outputs carry `apbc_unwrapped = 1`; legacy per-source files corrected in the analysis /
+  re-contraction.  Test: translation invariance (wrapped source vs time-shifted configuration) for
+  site series, nucleon, static-light, pion.
+- Check on the attempt-3 nucleon matrices with the correction: a m_N = 0.7886(33), 0.6814(38),
+  0.6207(85) vs UKQCD 0.799, 0.700, 0.641 — clean plateaus, pulls −0.7, −1.2, −1.2.
+- quark.h5 regenerated from the per-source propagator files (contract-only DAG 43233038; old files in
+  quark/pre_apbc_fix/).  M3 to be re-evaluated with the unchanged pre-registered method.
+- Lesson recorded: three gate failures were one bug; the excited-state diagnosis of attempts 1-2 was
+  wrong.  Test added so this cannot recur.
