@@ -314,3 +314,19 @@ method (plateau-onset rule; nucleon from the smeared×smeared GEVP), re-contract
 - Static-light P₋ − S chiral 459(24) MeV vs BGR 435(17) (pull +0.8); at κ_s P₋(deriv) − S = 406(19)
   vs 412 (−0.3), P₊ − S = 438(21) vs 400 (+1.6); heavy-spin partners exactly degenerate.
 Proceeding to M4 (quenched R-mesons and R-baryons; blinded).
+
+## 2026-11-23 — M4 checks on production data; analysis choices frozen (blinded)
+
+- GPU vs CPU-reference gate item (qA60_s0_c0004, real propagators): full GPU contraction == NumPy
+  re-contraction, 226 datasets, max rel. diff 3.7e-16; R-meson (us, γ5) production == explicit-loop
+  reference 4e-19; R-baryon (uds singlet, octet_A) production == reference 3.7e-15.  **Passed.**
+- Blinded dry run (results/qA60_M4_blinded_dryrun.json, 104 cfgs, 188 channels): equivalent-operator
+  pairs (γ5/γ4γ5, γ_i/γ4γ_i, 1/γ4, γ5γ_i/γ4γ5γ_i) agree within 2σ in 35/35 cases; Im C consistent
+  with zero (median of per-channel max 2.0σ over 28 tests); Hermiticity of the 2×2 smearing matrices
+  median of max 2.9σ (ensemble-average property, acceptable); HYP1 vs HYP2 splittings agree
+  (10 well-measured channels: mean pull 0.26, max |pull| 0.42).
+- Frozen before unblinding: (i) fit method as M3 (GEVP t0 = 1, td = 2, plateau-onset rule, AIC,
+  bin 2, exceptional-config rule); (ii) per J^P and flavour, the operator of the equivalent pair with
+  the smaller total error is used (decided on blinded data); (iii) headline splittings HYP2;
+  HYP1 − HYP2 difference enters the systematic budget; (iv) unblinding once, when qA60 has 300 cfgs
+  (every 2nd) and qA62 ≥ 80 cfgs of quark data.
