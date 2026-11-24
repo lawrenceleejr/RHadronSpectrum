@@ -344,3 +344,7 @@ Proceeding to M4 (quenched R-mesons and R-baryons; blinded).
 - 2026-11-24: qA62 generation (critical path for M2 and M4) starved of ≥15 GB GPUs (2 running, 41 matching
   slots busy).  qA62 gen priority raised to 10; qA62 quark DAG halted (new submissions paused) until
   generation catches up.  qA60 quark (11 GB GPUs) continues.
+- 2026-11-24: qA62 quark measurements switched from every 2nd to every configuration (n_sep = 40
+  compound sweeps; binning studies flat at β = 5.7/6.0) so the pre-registered M4 unblinding condition
+  (qA62 ≥ 80 quark cfgs) can be met from the 97 existing configs; gen keeps priority 10 > quark 5.
+  qA62 gen disk request lowered 20 → 10 GB.
