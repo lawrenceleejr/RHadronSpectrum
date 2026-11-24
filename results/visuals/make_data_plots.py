@@ -156,7 +156,7 @@ def level_diagram_from_json(path, tag, r0a, beta, a_fm=None, max_err=0.5):
     ax.tick_params(axis="x", length=0)
     ax.set_ylabel("$r_0\\,(\\bar\\Lambda - \\bar\\Lambda_{1^{+-}})$")
     sp = f" ($a \\approx {a_fm}$ fm)" if a_fm else ""
-    ax.set_title(f"Gluelump levels, $\\beta = {beta}${sp}, {res['ncfg']} cfgs, HYP2", loc="left", fontsize=8)
+    ax.set_title(f"R-glueball levels (static gluino), $\\beta = {beta}${sp}, {res['ncfg']} cfgs, HYP2", loc="left", fontsize=8)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
@@ -196,7 +196,7 @@ def gluelump_overlay(tag="qA57", binsize=4, t0=1, td=2):
         ally += list(m[ok] - dm[ok]) + list(m[ok] + dm[ok])
     ax.set_xlabel("$t/a$")
     ax.set_ylabel("$a E_{\\rm eff}$  (includes the common static self-energy)")
-    ax.set_title(f"Gluelump effective masses, $\\beta = 5.7$, {len(meta)} configurations", loc="left", fontsize=8)
+    ax.set_title(f"R-glueball effective masses, $\\beta = 5.7$, {len(meta)} configurations", loc="left", fontsize=8)
     ax.text(0.0, -0.22, "preliminary: GEVP principal correlators, no fits; only differences between channels are physical",
             transform=ax.transAxes, fontsize=6, color=GREY)
     range_frame(ax, allx, ally)

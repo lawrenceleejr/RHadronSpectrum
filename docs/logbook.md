@@ -330,3 +330,14 @@ Proceeding to M4 (quenched R-mesons and R-baryons; blinded).
   the smaller total error is used (decided on blinded data); (iii) headline splittings HYP2;
   HYP1 − HYP2 difference enters the systematic budget; (iv) unblinding once, when qA60 has 300 cfgs
   (every 2nd) and qA62 ≥ 80 cfgs of quark data.
+
+## 2026-11-24 — Naming and new deliverable
+
+- Naming convention (user): "R-glueball" for g̃g states in prose/figures/paper; "gluelump" only as the
+  lattice term for the static-limit object (CLAUDE.md updated; figures relabelled).
+- New deliverable docs/fragmentation.md: fraction of gluinos ending in R-glueballs — not a lattice
+  observable (fragmentation); lattice supplies spectrum/thresholds, R-glueball–I=0 R-meson mixing (M5)
+  and inputs for a Pythia 8 R-hadron study with the gluinoball probability as a model parameter.
+- BESIII X(2370) (0⁻⁺ glueball-dominated claim, 2025-2026): ordinary glueballs; no direct effect on
+  R-glueball/R-hadron spectroscopy here (different system, colour-octet static source).  Indirect
+  relevance only (see summary to user).

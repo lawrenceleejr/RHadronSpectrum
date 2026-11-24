@@ -21,4 +21,8 @@ Read `PLAN.md` first. It is the specification; this file is how to work.
   y = Λ̄ − Λ̄_lightest in MeV, thresholds as thin grey ticks.
 - Large data (configs, propagators, correlators) stays on cluster storage; git holds
   code, configs, fit summaries (JSON/CSV) and figures.
+- Naming: call the g̃g states **R-glueballs** in prose, figures, tables and the paper (user preference,
+  standard in R-hadron phenomenology; "gluinoball" in ATLAS/Pythia).  "Gluelump" is the lattice term for
+  the static-limit object; mention it once where the method is introduced.  Code identifiers keep the
+  `gluelump` name.
 - No model identifiers in commits or files.
