@@ -341,3 +341,6 @@ Proceeding to M4 (quenched R-mesons and R-baryons; blinded).
 - BESIII X(2370) (0⁻⁺ glueball-dominated claim, 2025-2026): ordinary glueballs; no direct effect on
   R-glueball/R-hadron spectroscopy here (different system, colour-octet static source).  Indirect
   relevance only (see summary to user).
+- 2026-11-24: qA62 generation (critical path for M2 and M4) starved of ≥15 GB GPUs (2 running, 41 matching
+  slots busy).  qA62 gen priority raised to 10; qA62 quark DAG halted (new submissions paused) until
+  generation catches up.  qA60 quark (11 GB GPUs) continues.
