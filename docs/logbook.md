@@ -303,3 +303,14 @@ smeared-smeared nucleon 2×2 GEVP (sink smearing on all timeslices in the solve 
   quark/pre_apbc_fix/).  M3 to be re-evaluated with the unchanged pre-registered method.
 - Lesson recorded: three gate failures were one bug; the excited-state diagnosis of attempts 1-2 was
   wrong.  Test added so this cannot recur.
+
+## 2026-11-23 — M3 GATE PASSED (after the APBC fix)
+
+results/qA60_M3_attempt4.json — 105 qA60 configs (1 exceptional excluded), unchanged pre-registered
+method (plateau-onset rule; nucleon from the smeared×smeared GEVP), re-contracted with APBC signs:
+- π: 0.3972(8), 0.3050(11), 0.2462(25) vs 0.3952, 0.3048, 0.2457 (pulls +1.1, +0.1, +0.2)
+- ρ: 0.5370(23), 0.4815(39), 0.4620(70) vs 0.5400, 0.4887, 0.4636 (pulls −0.6, −1.0, −0.1)
+- N: 0.7886(33), 0.6814(38), 0.6207(85) vs 0.799, 0.700, 0.641 (pulls −1.0, −1.2, −0.9)
+- Static-light P₋ − S chiral 459(24) MeV vs BGR 435(17) (pull +0.8); at κ_s P₋(deriv) − S = 406(19)
+  vs 412 (−0.3), P₊ − S = 438(21) vs 400 (+1.6); heavy-spin partners exactly degenerate.
+Proceeding to M4 (quenched R-mesons and R-baryons; blinded).
