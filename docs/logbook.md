@@ -348,3 +348,12 @@ Proceeding to M4 (quenched R-mesons and R-baryons; blinded).
   compound sweeps; binning studies flat at β = 5.7/6.0) so the pre-registered M4 unblinding condition
   (qA62 ≥ 80 quark cfgs) can be met from the 97 existing configs; gen keeps priority 10 > quark 5.
   qA62 gen disk request lowered 20 → 10 GB.
+
+## 2026-11-25 — Baryon cross-check complete: baryon code validated
+
+κ = 0.13344, 104 qA60 configs, smeared×smeared GEVP, APBC-corrected:
+N1 (Cγ5, production) = N1 (independent general-Wick path) = 0.7886(33); N2 (Cγ4γ5) = 0.7899(32);
+Δ⁺⁺ = 0.8825(43) vs UKQCD 0.899 (pull −1.1); a(M_Δ − M_N) = 0.0939(26) vs UKQCD 0.100.
+Two interpolators agree, two code paths agree, N and Δ correctly separated, both match the literature:
+the shared baryon machinery (used for the R-baryons) is validated.
+- qA60 quark DAG ended with one failed node (299/300); rescue DAG resubmitted.
