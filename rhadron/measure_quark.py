@@ -306,7 +306,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
                             done[f"pair{pair}/dens_{cname}_{jname}_qbar"] = to_numpy(cqb).reshape(Lz, Ly, Lx)
                     del done[f"src{2 * pair}/slice_tau"], done[f"src{isrc}/slice_tau"]
                     t = lap(f"densities pair {pair}", t)
-            if il == 0:
+            if il == 0 and qcfg.get("light_hadrons", True):  # M3 only; memory-heavy on 32^3x64
                 done[f"src{isrc}/light_pi"] = to_numpy(light.meson(Ssrc, qo.G5, t0=x0[3]))
                 done[f"src{isrc}/light_rho"] = to_numpy(sum(light.meson(Ssrc, G[i], t0=x0[3]) for i in range(3)) / 3)
                 done[f"src{isrc}/light_a0"] = to_numpy(light.meson(Ssrc, qo.ONE, t0=x0[3]))

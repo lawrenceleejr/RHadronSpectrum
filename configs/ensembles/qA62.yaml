@@ -30,3 +30,4 @@ quark:                       # M4 valence sector at beta = 6.2 (NP clover, ALPHA
   no_multigrid: true         # benchmark at the first qA62 configs (lighter a m_q per kappa)
   static_actions: [HYP2, HYP1]
   seed: 62
+  light_hadrons: false       # zero-momentum pi/rho/N only needed for M3 (passed at beta=6.0); saves ~3x4.8 GB GPU memory
