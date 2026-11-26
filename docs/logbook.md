@@ -371,3 +371,9 @@ the shared baryon machinery (used for the R-baryons) is validated.
   (qA60 600, qA62 385).  Analysis choices as frozen on 2026-11-23 (logbook).  Code 27a02bc.
 - Run: `python -m rhadron.analysis.m4 <tag> <quark/out> results/<tag>_M4_unblinded.json --UNBLIND`
   for qA60 and qA62, started 20:59Z.
+- M4 unblinded results: results/qA60_M4_unblinded.json (293 cfgs), results/qA62_M4_unblinded.json
+  (89 cfgs), summary results/M4_review.md.  β = 6.0: R-glueball (1⁺⁻) lightest at all κ; 1⁻/0⁻
+  R-mesons +0.5 r0 (≈200 MeV) above at heavy κ, 1⁻ +0.19(13) r0 at the lightest κ; R-baryons ≥ +1.4 r0
+  (S⁰ lightest R-baryon).  β = 6.2: R-meson fits on late noise windows (t = 12–18) → undetermined;
+  FLAGGED.  Proposed: quark measurements on all ~380 qA62 configs; t_max signal-to-noise cut
+  (post-unblinding change, documented).
