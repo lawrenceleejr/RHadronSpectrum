@@ -314,6 +314,7 @@ def solve_role(U_np, qcfg, cfg_id, role, outpath, n_src=None, log=print):
                 done[f"src{isrc}/light_N"] = to_numpy(light.nucleon(Ssrc, t0=x0[3])) * site_series_signs(x0[3], Lt, Lt)
                 t = lap("nucleon", t)
             del Ssrc
+            cp.get_default_memory_pool().free_all_blocks()  # 32^3x64: each propagator is 4.8 GB
         tmp = outpath + ".tmp"
         with h5py.File(tmp, "w") as f:
             for k, v in done.items():
