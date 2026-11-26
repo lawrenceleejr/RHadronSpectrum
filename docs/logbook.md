@@ -360,3 +360,7 @@ the shared baryon machinery (used for the R-baryons) is validated.
 - 2026-11-26: qA62 quark DAG 43248796 stopped (106 failed solve nodes, 64 futile contracts; 250 done):
   CuPy OutOfMemory on 16–24 GB GPUs (32³×64 propagator = 4.8 GB complex128, pool caching).  Fix: free
   the CuPy pool after each source; qA62 solves require GPUs ≥ 40 GB.  Rescue DAG 43273517.
+- 2026-11-26: qA62 rescue: no new OOMs with ≥ 40 GB GPUs but only 1 such slot at a time.  The memory
+  hog was the zero-momentum light-hadron einsums on the full 32³×64 propagator (several 4.8 GB
+  intermediates), needed only for M3 (passed at β = 6.0).  `light_hadrons: false` for qA62; solves
+  now accept ≥ 20 GB GPUs (idle jobs edited; DAG code/ens refreshed).
