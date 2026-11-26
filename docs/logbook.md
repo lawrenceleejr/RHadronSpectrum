@@ -357,3 +357,6 @@ N1 (Cγ5, production) = N1 (independent general-Wick path) = 0.7886(33); N2 (Cγ
 Two interpolators agree, two code paths agree, N and Δ correctly separated, both match the literature:
 the shared baryon machinery (used for the R-baryons) is validated.
 - qA60 quark DAG ended with one failed node (299/300); rescue DAG resubmitted.
+- 2026-11-26: qA62 quark DAG 43248796 stopped (106 failed solve nodes, 64 futile contracts; 250 done):
+  CuPy OutOfMemory on 16–24 GB GPUs (32³×64 propagator = 4.8 GB complex128, pool caching).  Fix: free
+  the CuPy pool after each source; qA62 solves require GPUs ≥ 40 GB.  Rescue DAG 43273517.
