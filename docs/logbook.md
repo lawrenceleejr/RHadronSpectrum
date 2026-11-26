@@ -364,3 +364,10 @@ the shared baryon machinery (used for the R-baryons) is validated.
   hog was the zero-momentum light-hadron einsums on the full 32³×64 propagator (several 4.8 GB
   intermediates), needed only for M3 (passed at β = 6.0).  `light_hadrons: false` for qA62; solves
   now accept ≥ 20 GB GPUs (idle jobs edited; DAG code/ens refreshed).
+
+## 2026-11-26 — M4 UNBLINDING (performed once)
+
+- Conditions met: qA60 300 quark cfgs, qA62 89 quark cfgs (≥ 80).  All gluelump files fixed-basis
+  (qA60 600, qA62 385).  Analysis choices as frozen on 2026-11-23 (logbook).  Code 27a02bc.
+- Run: `python -m rhadron.analysis.m4 <tag> <quark/out> results/<tag>_M4_unblinded.json --UNBLIND`
+  for qA60 and qA62, started 20:59Z.
