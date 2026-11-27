@@ -390,3 +390,23 @@ def test_apbc_unwrapping_translation_invariance():
     assert np.abs(na[:tmax + 1] - nb[:tmax + 1]).max() < 1e-8 * np.abs(nb).max()
     pa, pb = light.meson(SA, qo.G5, t0=t0), light.meson(SB, qo.G5, t0=0)  # mesons need no sign
     assert np.abs(pa - pb).max() < 1e-8 * np.abs(pb).max()
+
+
+def test_cross_correlator_diagonal_blocks_match_contract_all():
+    """The diagonal (op a, op a) blocks of the enlarged matrices equal the standard per-operator matrices."""
+    from rhadron.measure_quark import contract_all, contract_cross
+    rng = np.random.default_rng(71)
+    T = 3
+    rp = lambda: rng.normal(size=(T, 4, 3, 4, 3)) + 1j * rng.normal(size=(T, 4, 3, 4, 3))  # noqa: E731
+    roles = ["l1", "s"]
+    site = {(r, 0, il, jl): rp() for r in roles for il in range(2) for jl in range(2)}
+    W = {"HYP2": [random_su3((T,), rng)]}
+    qc = {"light_roles": ["l1"]}
+    std = contract_all(site, [(0, 0, 0, 0)], W, roles, [(0.25, 1), (0.25, 2)], T - 1, qc)
+    x = contract_cross(site, [(0, 0, 0, 0)], W, roles, [(0.25, 1), (0.25, 2)], T - 1, qc)
+    a = x["HYP2/rmeson_x/l1/ud/1m"][:, 0:2, 0:2]
+    b = std["HYP2/rmeson/l1/ud/gi"]
+    assert np.abs(a - b).max() < 1e-12 * np.abs(b).max()
+    a = x["HYP2/rmeson_x/l1/us/0m"][:, 2:4, 2:4]
+    b = std["HYP2/rmeson/l1/us/g4g5"]
+    assert np.abs(a - b).max() < 1e-12 * np.abs(b).max()

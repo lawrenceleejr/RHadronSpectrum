@@ -35,7 +35,7 @@ def load_quark(files, exclude):
             if k in exclude:
                 continue
             names = []
-            h.visititems(lambda n, o: names.append(n) if isinstance(o, h5py.Dataset) and ("/rmeson/" in n or "/rbaryon/" in n) else None)
+            h.visititems(lambda n, o: names.append(n) if isinstance(o, h5py.Dataset) and ("/rmeson/" in n or "/rbaryon/" in n or "/rmeson_x/" in n or "/rbaryon_x/" in n) else None)
             for n in names:
                 out.setdefault(n, {})[k] = h[n][...]
     return out

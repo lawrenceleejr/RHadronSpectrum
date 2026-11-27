@@ -11,9 +11,9 @@ seed: 32044
 save_configs: true
 gluelump:
   ape_alpha: 0.5
-  ape_levels: [18, 45]
-  shapes: [plaq, chair, lplaq]
-  tmax: 16
+  ape_levels: [9, 18, 36, 63]            # enlarged basis 2026-11-27 (was 2 levels)
+  shapes: [plaq, rect, chair, lplaq]
+  tmax: 18
   hyp1_every: 4              # second static action (HYP1) on every 4th config
 quark:                       # M4 valence sector at beta = 6.2 (NP clover, ALPHA c_SW)
   csw: 1.61375

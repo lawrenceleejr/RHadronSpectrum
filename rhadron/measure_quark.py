@@ -159,6 +159,68 @@ def _sink_smeared_site(Usm, S, x0, tmax, lev):
     return sgn * sub[:, z, y, x].transpose(0, 1, 4, 2, 3).astype(S.dtype)  # unwrapped, [t, s, a, s0, a0]
 
 
+# Equivalent-operator groups for enlarged GEVP bases (same light j^P / flavour multiplet)
+MESON_PAIRS = {"0m": ("g5", "g4g5"), "1m": ("gi", "g4gi"), "0p": ("1", "g4"), "1p": ("g5gi", "g4g5gi")}
+BARYON_GROUPS = {
+    "8_1o2": [("octet_A", "uud_A", "Cg5", "1/2"), ("octet_S", "uud_A", "Cgi", "1/2")],
+    "8_3o2": [("octet_S", "uud_A", "Cgi", "3/2"), ("octet_A", "uud_S", "Cgi", "3/2")],
+    "1_1o2": [("octet_A", "uds_singlet", "Cg5", "1/2"), ("octet_S", "uds_singlet", "Cgi", "1/2")],
+}
+
+
+def contract_cross(site, sites, W, roles, smears, tmax, qcfg):
+    """Cross-correlator matrices over (operator, smearing): [t, 2*nl, 2*nl] per group, index
+    = op * nl + level; C[t, snk, src].  R-mesons average the rows of the irrep (row i with row i)."""
+    nl = len(smears)
+    light_roles = qcfg.get("light_roles", [r for r in roles if r != "s"])
+    xp = get_xp(next(iter(v for k, v in site.items() if k[0] != "light")))
+    acts = list(W)
+    corr = {}
+
+    def acc(key, i, j, c):
+        M = corr.setdefault(key, np.zeros((tmax + 1, 2 * nl, 2 * nl), dtype=complex))
+        M[:, i, j] += to_numpy(c) / len(sites)
+
+    mes = {}
+    for fl in MESON_FLAVOURS:
+        if "s" in fl and "s" not in roles:
+            continue
+        for jp, (ga, gb) in MESON_PAIRS.items():
+            rows = list(zip(qo.MESON_GAMMAS[ga][0], qo.MESON_GAMMAS[gb][0]))
+            mes[(fl, jp)] = [[(xp.asarray(qo.meson_tensor(G1, qo.flavour_matrix(fl))),
+                               xp.asarray(qo.meson_bar(qo.meson_tensor(G1, qo.flavour_matrix(fl))))) for G1 in row]
+                             for row in rows]  # mes[...][row][op] = (F, Fbar)
+    bar = {}
+    for gname, ops in BARYON_GROUPS.items():
+        if any("uds" in o[1] for o in ops) and "s" not in roles:
+            continue
+        Fs = [qo.baryon_tensor(*o, nr=True) for o in ops]
+        if len({F.shape[1] for F in Fs}) != 1:
+            continue
+        bar[gname] = [(hadron.flavour_components(F), hadron.flavour_components(qo.baryon_bar(F))) for F in Fs]
+    for isrc in range(len(sites)):
+        for lr in light_roles:
+            for il in range(nl):
+                for jl in range(nl):
+                    props = _props(site, lr, isrc, il, jl, roles)
+                    for (fl, jp), rows in mes.items():
+                        for a in range(2):
+                            for b in range(2):
+                                Bs = [hadron.rmeson_block(row[a][0], row[b][1], props, tmax) for row in rows]
+                                for act in acts:
+                                    c = sum(hadron.contract_rmeson(B, W[act][isrc]) for B in Bs) / len(Bs)
+                                    acc(f"{act}/rmeson_x/{lr}/{fl}/{jp}", a * nl + jl, b * nl + il, c)
+                    for gname, ops in bar.items():
+                        for a in range(2):
+                            for b in range(2):
+                                B = hadron.rbaryon_block_fast(ops[a][0], ops[b][1], props, tmax)
+                                for act in acts:
+                                    Cb = hadron.contract_rbaryon(B, W[act][isrc])
+                                    acc(f"{act}/rbaryon_x/{lr}/{gname}", a * nl + jl, b * nl + il,
+                                        xp.einsum("trr->t", Cb) / Cb.shape[1])
+    return corr
+
+
 def contract_all(site, sites, W, roles, smears, tmax, qcfg):
     """All static-site correlators, averaged over sources; matrix [t, snk level, src level].
     Quark blocks (independent of the static action) are computed once and contracted with every
@@ -377,6 +439,8 @@ def contract_from_files(U_np, qcfg, role_files, log=print):
         del V4
     t0 = time.time()
     corr = contract_all(site, sites, W, roles, smears, tmax, qcfg)
+    if qcfg.get("cross_correlators", True):
+        corr.update(contract_cross(site, sites, W, roles, smears, tmax, qcfg))
     log(f"contractions {time.time() - t0:.0f}s for {nsrc} sources", flush=True)
     return corr, {"sites": sites, "roles": roles}
 

@@ -11,9 +11,9 @@ seed: 2033
 save_configs: true
 gluelump:
   ape_alpha: 0.5
-  ape_levels: [10, 25]
-  shapes: [plaq, chair, lplaq]
-  tmax: 12
+  ape_levels: [5, 10, 20, 35]            # enlarged basis 2026-11-27 (was 2 levels)
+  shapes: [plaq, rect, chair, lplaq]
+  tmax: 14
   hyp1_every: 4              # second static action (HYP1) on every 4th config
 quark:                       # M3/M4 valence sector (NP clover, ALPHA c_SW at beta = 6.0)
   csw: 1.76923
@@ -21,7 +21,7 @@ quark:                       # M3/M4 valence sector (NP clover, ALPHA c_SW at be
   light_roles: [l1, l2, l3]
   link_smear: {alpha: 0.5, n: 10}  # spatial APE links for Wuppertal smearing
   smear_levels: [[0.25, 30], [0.25, 90]]
-  n_src: 8
+  n_src: 16                  # 16 sources for configs measured after 2026-11-27 (8 before)
   tmax: 14
   tol: 1.0e-9
   maxiter: 3000
