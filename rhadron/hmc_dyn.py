@@ -59,11 +59,11 @@ def run(ens, outdir, until, start=None, log=print):
         log(f"resume at trajectory {traj}", flush=True)
     else:
         gauge = core.LatticeGauge(li)  # cold start
-    hmc.initialize(int(ens.get("seed", 1)) * 100003 + traj, gauge)
+    hmc.initialize(int(ens.get("seed", 1)) * 100003 + 1009 * int(ens.get("stream", 0)) + traj, gauge)
     tau = float(h.get("tau", 1.0))
     meta = {"ensemble": tag, "beta": ens["beta"], "kappa_ud": ens["kappa_ud"], "kappa_s": ens["kappa_s"],
             "csw": csw, "ens_hash": io.config_hash(ens), "git_sha": io.git_sha()}
-    logf = open(os.path.join(outdir, f"{tag}_hmc_log.jsonl"), "a")
+    logf = open(os.path.join(outdir, f"{tag}_s{ens.get('stream', 0)}_hmc_log_from{traj:05d}.jsonl"), "a")  # one file per segment
     while traj < until:
         t0 = time.perf_counter()
         hmc.gaussMom()

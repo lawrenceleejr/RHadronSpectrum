@@ -299,6 +299,72 @@ error = {dagdir}/logs/$(NODE).err
     print(dag, f"{n} configurations x {len(roles)} roles")
 
 
+def hmc_dag(a):
+    """Stage B: linear chains of HMC segments per stream (`rhadron hmc --until <traj>`), resuming from
+    the checkpoint; segments whose checkpoint already shows the target trajectory are DONE."""
+    ens = yaml.safe_load(open(a.ensemble))
+    tag = ens["tag"]
+    base = os.path.join(DATA, tag)
+    dagdir = os.path.join(base, "dag")
+    os.makedirs(dagdir, exist_ok=True)
+    sha = code_tarball(os.path.join(dagdir, "code.tar.gz"))
+    shutil.copy(a.ensemble, os.path.join(dagdir, "ens.yaml"))
+    shutil.copy(os.path.join(HERE, "wrapper.sh"), dagdir)
+    h = ens["hmc"]
+    total = int(h["n_therm"]) + int(h["save_every"]) * a.cfgs_per_stream
+    lines = [f"# {tag}: {a.streams} streams x {a.cfgs_per_stream} cfgs (HMC); code {sha}", f"CONFIG {dagdir}/dagman.config"]
+    for s_ in range(a.streams):
+        iwd = os.path.join(base, f"s{s_}")
+        os.makedirs(os.path.join(iwd, "logs"), exist_ok=True)
+        ck = os.path.join(iwd, "out", f"{tag}_s{s_}_ckpt.h5")
+        try:
+            with h5py.File(ck, "r") as f:
+                have = int(f.attrs["traj"])
+        except Exception:  # noqa: BLE001
+            have = -1
+        prev = None
+        for k, u in enumerate(list(range(a.segment, total, a.segment)) + [total]):
+            node = f"h_s{s_}_{k}"
+            inputs = [os.path.join(dagdir, "code.tar.gz"), os.path.join(dagdir, "ens.yaml")]
+            startarg = ""
+            if k > 0 or have > 0:
+                inputs.append(ck)
+                startarg = f"--start {os.path.basename(ck)}"
+            lines.append(f"JOB {node} {dagdir}/hmc.sub" + (" DONE" if have >= u else ""))
+            lines.append(f'VARS {node} STREAM="{s_}" UNTIL="{u}" IWD="{iwd}" INPUTS="{",".join(inputs)}" STARTARG="{startarg}"')
+            lines.append(f"RETRY {node} 3")
+            if prev:
+                lines.append(f"PARENT {prev} CHILD {node}")
+            prev = node
+    sub = f"""universe = vanilla
+container_image = {a.image}
+executable = {dagdir}/wrapper.sh
+arguments = hmc --ensemble ens.yaml --stream $(STREAM) --until $(UNTIL) $(STARTARG) --outdir out
+initialdir = $(IWD)
+should_transfer_files = YES
+transfer_input_files = $(INPUTS)
+transfer_output_files = out
+when_to_transfer_output = ON_EXIT_OR_EVICT
+request_gpus = 1
+require_gpus = {a.gpureq}
+request_cpus = 1
+request_memory = 8GB
+request_disk = 10GB
+priority = 10
+periodic_release = (HoldReasonCode == 13 || HoldReasonCode == 12) && (NumJobStarts < 6)
+log = $(IWD)/logs/{tag}_s$(STREAM).log
+output = $(IWD)/logs/{tag}_s$(STREAM)_u$(UNTIL).out
+error = $(IWD)/logs/{tag}_s$(STREAM)_u$(UNTIL).err
+queue
+"""
+    open(os.path.join(dagdir, "hmc.sub"), "w").write(sub)
+    open(os.path.join(dagdir, "dagman.config"), "w").write(
+        f"DAGMAN_MAX_JOBS_SUBMITTED = {a.maxjobs}\nDAGMAN_MAX_JOBS_IDLE = {a.maxjobs}\n")
+    dag = os.path.join(dagdir, f"{tag}_hmc.dag")
+    open(dag, "w").write("\n".join(lines) + "\n")
+    print(dag, f"{a.streams} streams, {total} trajectories each")
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -335,10 +401,18 @@ def main():
     qd.add_argument("--pwave-role", default=None, help="static-light P-wave DAG for this kappa role only")
     qd.add_argument("--contract-only", action="store_true", help="contraction nodes only (from existing prop files)")
     qd.add_argument("--nucleon-roles", default=None, help="smeared-sink nucleon DAG for these roles (comma list)")
+    hd = sub.add_parser("hmc")
+    hd.add_argument("ensemble")
+    hd.add_argument("--streams", type=int, default=4)
+    hd.add_argument("--cfgs-per-stream", type=int, default=100)
+    hd.add_argument("--segment", type=int, default=40, help="trajectories per job")
+    hd.add_argument("--image", required=True)
+    hd.add_argument("--gpureq", default="(Capability == 7.0 || Capability == 8.0 || Capability == 9.0) && (GlobalMemoryMb >= 15000)")
+    hd.add_argument("--maxjobs", type=int, default=8)
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
     a = p.parse_args()
-    {"gen": gen_dag, "glue": glue_dag, "quark": quark_dag, "refresh-code": refresh_code}[a.cmd](a)
+    {"gen": gen_dag, "glue": glue_dag, "quark": quark_dag, "hmc": hmc_dag, "refresh-code": refresh_code}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ for e in qA57 qA60 qA62 dB700 dB570; do
   rsync -a --prune-empty-dirs --include='*/' --include='*_glue.h5' --exclude='*' "./$e/" "$P/correlators/$e/gluelump/"
   [ -d "$e/quark" ] && rsync -a --include='*/' --include='*.h5' --exclude='quda_tune/**' --exclude='*' "$e/quark/" "$P/correlators/$e/quark/"
   rsync -a --prune-empty-dirs --include='*/' --include="${e}_s*_c[0-9][0-9][0-9][0-9].h5" --include='*_ckpt.h5' \
-        --include='*_hmc_log.jsonl' --exclude='*' "./$e/" "$O/$e/"
+        --include='*_hmc_log*.jsonl' --exclude='*' "./$e/" "$O/$e/"
 done
 rsync -a "$S/data/render/" "$P/renders/"
 rsync -a --prune-empty-dirs --include='*/' --include='*dag*/**.dag*' --include='*dag*/**.sub' --include='*dag*/**.yaml' \
