@@ -456,3 +456,14 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   8.7 GB (24³×48), so the GPU floor for dB700/dB570/dB410 was lowered from 15 GB to 10 GB (adds RTX 2080 Ti;
   same FP64 class as the already-allowed Quadro RTX 6000), via condor_qedit (expression, not string) and in
   each DAG's hmc.sub.  Real bottleneck is fair share (effective priority 39,300 after ~47.5k slot-h).
+
+## 2026-11-27 (evening) — HMC GPU class matters 10×
+- Stage B segments from traj 40 that ran on GeForce RTX 3060 (12 GB) took 3,690-4,020 s per trajectory
+  (V100 ≈ 340 s, H100 ≈ 88 s): the RHMC force/outer solves are double precision and consumer cards
+  have 1/64-rate FP64.  Each such job finished one trajectory before eviction.
+- The 10 GB floor set this afternoon would have admitted exactly these cards.  Reverted: HMC now requires
+  cc 7.0/8.0/9.0 (V100/A100/H100) with ≥ 15 GB — condor_qedit on the 12 queued jobs (expression),
+  the three hmc.sub files (repaired with python after sed '&' mangling), and the manifest hmc default.
+  dB700 s3 and dB410 s0 were vacated off RTX 3060s (resume from checkpoint).
+- Acceptance at n_outer 14/16 not yet measurable (one trajectory per stream so far).
+- Warm dB410 and dC56/dC54 benchmarks still idle; Stage C projection unchanged (≈ 13,800 GPU-h).

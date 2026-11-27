@@ -407,7 +407,7 @@ def main():
     hd.add_argument("--cfgs-per-stream", type=int, default=100)
     hd.add_argument("--segment", type=int, default=40, help="trajectories per job")
     hd.add_argument("--image", required=True)
-    hd.add_argument("--gpureq", default="(Capability >= 7.0) && (GlobalMemoryMb >= 15000) && (Capability < 10.0)")  # FP64-class GPUs too scarce
+    hd.add_argument("--gpureq", default="(Capability == 7.0 || Capability == 8.0 || Capability == 9.0) && (GlobalMemoryMb >= 15000)")  # FP64 GPUs only: RTX 3060 measured 3700 s/traj vs 340 (V100), 88 (H100)
     hd.add_argument("--maxjobs", type=int, default=8)
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
