@@ -420,3 +420,17 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   claimed by others; our fair-share effective priority 42,600 after ~47k slot-h.  Stage B HMC and Stage C
   benchmarks opened to any cc 7.0–9.x ≥15 GB GPU (sloppy-precision CG dominates); HMC host memory 4 GB;
   holds for the 20 h execute limit (code 47) auto-released (checkpoint every trajectory).
+
+## 2026-11-27 — Stage C budget check (before any Stage C production)
+- dB300 cold benchmark (43307054.1) died: QUDA OOM on a 24 GB Quadro RTX 6000 (32³×64 RHMC, double/single).
+  Resubmitted alone requiring ≥ 39 GB GPU memory (cluster 43322539).
+- dB410 cold benchmark (43307054.0) is running on a V100.  Cold-start benchmarks underestimated Stage B
+  ~4× (90 s predicted vs 340 s/traj measured), so a warm-start dB410 benchmark from dB570 s1 traj 40
+  (cluster 43322754, 12 traj) was added to get a near-equilibrium s/traj.
+- Stage B segments 0-40: dB700 332-349 s/traj on V100 (88 s on one fast card), acceptance 0.57-0.60
+  (n_outer 12); dB570 309-342 s/traj, acceptance 0.43-0.50.  Segments from traj 40 (n_outer 14/16) are queued.
+- Projection (scaling with CG cost ∝ 1/m_q (κ_c ≈ 0.13781), step count and volume; plan 4 streams ×
+  (500 + 1000) traj each):  spent 2,464; Stage A remaining ≈ 1,100; Stage B ≈ 1,900 (HMC + meas.);
+  dB410 ≈ 2,000; dB300 ≈ 9,100; β = 2.05 pair ≈ 6,300  →  ≈ 23,000 GPU-h > 20,000 ceiling.
+  dB300 also needs ≈ 1500 traj × ~5000 s (A100) ≈ 3 months per stream: not feasible in wall-clock.
+  Without dB300: ≈ 13,800.  Reported to the user with options; no Stage C production launched.
