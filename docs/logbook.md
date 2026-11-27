@@ -416,3 +416,7 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   cold start; benchmark 38–72 s was from the cold start).  Acceptance 65 % (dB700), 57 % (dB570) with
   12 outer steps → raised to 14 / 16.  Revised Stage B estimate ≈ 1,500 GPU-h; Stage C (32³×64) to be
   re-estimated from benchmarks; budget to be re-checked against the 20k ceiling (report if exceeded).
+- 2026-11-27: Big-GPU starvation: only ~35 FP64-class (V100/A100/H100) ≥15 GB GPUs in the pool, mostly
+  claimed by others; our fair-share effective priority 42,600 after ~47k slot-h.  Stage B HMC and Stage C
+  benchmarks opened to any cc 7.0–9.x ≥15 GB GPU (sloppy-precision CG dominates); HMC host memory 4 GB;
+  holds for the 20 h execute limit (code 47) auto-released (checkpoint every trajectory).
