@@ -398,3 +398,9 @@ qA60 quark on remaining 300 cfgs (n_src 16, cross-correlators) DAG 43306995; qA6
 cross-correlators 43306996 (old quark.h5 in quark/pre_cross/); enlarged R-glueball basis
 re-measurement qA57 43307026, qA60 43307027, qA62 43307028 (≥ 40 GB GPUs); qA62 gen now --no-measure;
 Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the second dynamical spacing.
+- Second dynamical spacing chosen (docs/stageC_parameters.md): CP-PACS/JLQCD β = 2.05, c_SW = 1.628,
+  a ≈ 0.070 fm, 32³×64 (L ≈ 2.24 fm), same action as β = 1.90 (Iwasaki + unsmeared NP clover).
+  Ensembles dC56 (κ_ud 0.13560, κ_s 0.13510; published point, r0/a = 7.06 from WHOT-QCD) and
+  dC54 (κ_ud 0.13540, κ_s 0.13510).  Pion masses to be measured; combined fit in (m_π, a) does not
+  need exact matching.  PACS10 (stout-smeared clover) excluded: different action.  Scale: one common
+  quantity (r0 / w0 / t0 from our own measurements) at both β.

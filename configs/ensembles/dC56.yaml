@@ -1,0 +1,42 @@
+# Stage C second dynamical lattice spacing: CP-PACS/JLQCD beta = 2.05 (arXiv:0704.1937), a ~ 0.070 fm, 32^3x64 (L ~ 2.24 fm).
+# (kappa_ud, kappa_s) = (0.13560, 0.13510); c_SW = 1.628 (NP, hep-lat/0508031); m_pi to be measured (only m_PS/m_V published).
+tag: dC56
+action: iwasaki_clover_2p1
+beta: 2.05
+csw: 1.628
+kappa_ud: 0.13560
+kappa_s: 0.13510
+shape: [64, 32, 32, 32]
+seed: 2056
+hmc:
+  tau: 0.5             # PACS-CS-like trajectory length
+  n_outer: 16           # benchmark
+  n_inner: 5
+  rational: [12, 15, 7.0e-4, 32, 50]   # as PyQUDA test_hmc_clover; checked at the benchmark
+  tol: 1.0e-9
+  maxiter: 20000
+  n_warm_noreject: 0    # forced acceptance of large-dH trajectories made the clover term non-HPD
+  n_therm: 500
+  save_every: 10
+quark:                       # Stage B valence sector: unitary (valence = sea kappas), PACS-CS NP c_SW
+  csw: 1.628
+  kappas: {l1: 0.13560, s: 0.13510}
+  light_roles: [l1]
+  link_smear: {alpha: 0.5, n: 17}
+  smear_levels: [[0.25, 50], [0.25, 150]]
+  n_src: 8
+  pair_sep: 16
+  densities: true            # light-quark charge/matter maps around the gluino (final visualisation)
+  light_hadrons: true        # unitary pi, rho, N for the scale / m_pi
+  tmax: 18
+  tol: 1.0e-9
+  maxiter: 6000
+  multigrid: [[4, 4, 4, 4], [2, 2, 2, 2]]   # lighter dynamical quarks: benchmark MG vs BiCGStab first
+  static_actions: [HYP2, HYP1]
+  seed: 700
+gluelump:
+  ape_alpha: 0.5
+  ape_levels: [8, 17, 34, 60]
+  shapes: [plaq, rect, chair, lplaq]
+  tmax: 12
+  hyp1_every: 4
