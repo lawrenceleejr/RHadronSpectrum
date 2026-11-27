@@ -390,3 +390,11 @@ the shared baryon machinery (used for the R-baryons) is validated.
   Fixes before launch: per-stream RNG seeds; per-segment HMC logs.  Quark settings added (unitary κ,
   paired sources, densities on); MG vs BiCGStab to be benchmarked on the first configurations.
 - qA62 quark production on all remaining 299 configs: DAG 43306865.
+
+## 2026-11-27 — Precision programme started (docs/precision_plan.md)
+
+User asked for a solid physical prediction with reduced errors → Stage C approved.  Launched:
+qA60 quark on remaining 300 cfgs (n_src 16, cross-correlators) DAG 43306995; qA60 re-contraction with
+cross-correlators 43306996 (old quark.h5 in quark/pre_cross/); enlarged R-glueball basis
+re-measurement qA57 43307026, qA60 43307027, qA62 43307028 (≥ 40 GB GPUs); qA62 gen now --no-measure;
+Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the second dynamical spacing.
