@@ -1,0 +1,42 @@
+# Stage B self-generated N_f = 2+1 ensemble at PACS-CS parameters (0807.1661), Stage C lighter point (m_pi ~ 300 MeV).
+# Iwasaki gauge + NP clover; m_pi ~ 300 MeV at a ~ 0.0907 fm; here 32^3x64 (m_pi L ~ 4.4).
+tag: dB300
+action: iwasaki_clover_2p1
+beta: 1.90
+csw: 1.715
+kappa_ud: 0.13770
+kappa_s: 0.13640
+shape: [64, 32, 32, 32]
+seed: 3001
+hmc:
+  tau: 0.5             # PACS-CS-like trajectory length
+  n_outer: 16           # lighter quarks: smaller step (benchmark)
+  n_inner: 5
+  rational: [12, 15, 7.0e-4, 32, 50]   # as PyQUDA test_hmc_clover; checked at the benchmark
+  tol: 1.0e-9
+  maxiter: 20000
+  n_warm_noreject: 0    # forced acceptance of large-dH trajectories made the clover term non-HPD
+  n_therm: 500
+  save_every: 10
+quark:                       # Stage B valence sector: unitary (valence = sea kappas), PACS-CS NP c_SW
+  csw: 1.715
+  kappas: {l1: 0.13770, s: 0.13640}
+  light_roles: [l1]
+  link_smear: {alpha: 0.5, n: 10}
+  smear_levels: [[0.25, 30], [0.25, 90]]
+  n_src: 8
+  pair_sep: 12
+  densities: true            # light-quark charge/matter maps around the gluino (final visualisation)
+  light_hadrons: true        # unitary pi, rho, N for the scale / m_pi
+  tmax: 14
+  tol: 1.0e-9
+  maxiter: 6000
+  multigrid: [[4, 4, 4, 4], [2, 2, 2, 2]]   # lighter dynamical quarks: benchmark MG vs BiCGStab first
+  static_actions: [HYP2, HYP1]
+  seed: 700
+gluelump:
+  ape_alpha: 0.5
+  ape_levels: [10, 25]
+  shapes: [plaq, chair, lplaq]
+  tmax: 12
+  hyp1_every: 4
