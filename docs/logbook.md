@@ -434,3 +434,15 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   dB410 ≈ 2,000; dB300 ≈ 9,100; β = 2.05 pair ≈ 6,300  →  ≈ 23,000 GPU-h > 20,000 ceiling.
   dB300 also needs ≈ 1500 traj × ~5000 s (A100) ≈ 3 months per stream: not feasible in wall-clock.
   Without dB300: ≈ 13,800.  Reported to the user with options; no Stage C production launched.
+
+## 2026-11-27 — Stage C decision (user: "do what you recommend" → option A now, B if access)
+- dB300 dropped from our own generation (benchmark 43322539 removed).  Chiral lever arm 700/570/410 MeV.
+  Projection ≈ 13,800 GPU-h.  If dB410 measures far above ~1,000 s/traj (V100), dC54 is dropped too.
+- dB410 production DAG submitted (cluster 43322772): 4 streams × (500 + 100×10) traj, segments of 40,
+  cold start, n_outer 16 (to be retuned per segment from the warm benchmark 43322754, as in Stage B).
+- dC56/dC54 cold benchmarks submitted (cluster 43322779, ≥ 30 GB GPUs, 12 traj).
+- Option B: PACS-CS N_f=2+1 β=1.90 32³×64 ensembles (Iwasaki + NP clover, c_SW 1.715; κ_ud down to
+  0.13781, m_π ≈ 156 MeV) are distributed through ILDG/JLDG.  Access needs an ILDG account (INDIGO IAM at
+  iam-ildg.cloud.cnaf.infn.it; token-based gfal/curl downloads) — the user has to register; ~1.2 GB per
+  config in double precision.  Same action/parameters as our dB* ensembles, so they would slot in as
+  dB410/dB300 (and the physical point) at larger volume.

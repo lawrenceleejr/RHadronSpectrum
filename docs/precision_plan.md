@@ -16,7 +16,7 @@ B. Enlarged R-glueball basis on all quenched cfgs: 4 smearing levels, + rectangl
    analyses never mix bases (modal-shape filter).
 C. Cross-correlators between equivalent quark operators → 4×4 GEVP (R-mesons per j^P and flavour,
    R-baryon groups (8,½), (8,3/2), (1,½)); re-contraction of stored propagators. [qA60_recontract_x]
-D. Stage C dynamical ensembles: dB410 (κ_ud 0.13754, 24³×48), dB300 (κ_ud 0.13770, 32³×64);
+D. Stage C dynamical ensembles: dB410 (κ_ud 0.13754, 24³×48) generated here; dB300 dropped (cost, wall-clock) unless PACS-CS 32³×64 configs are obtained via ILDG;
    HMC benchmarks first (cluster 43307054).
 E. Second dynamical lattice spacing (continuum limit): parameters from docs/stageC_parameters.md
    (literature lookup in progress).
