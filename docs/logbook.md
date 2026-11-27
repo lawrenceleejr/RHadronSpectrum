@@ -404,3 +404,15 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   dC54 (κ_ud 0.13540, κ_s 0.13510).  Pion masses to be measured; combined fit in (m_π, a) does not
   need exact matching.  PACS10 (stout-smeared clover) excluded: different action.  Scale: one common
   quantity (r0 / w0 / t0 from our own measurements) at both β.
+
+## 2026-11-27 — Effect of the S/N t_max cut at β = 6.0; Stage B HMC cost
+
+- M3 re-run with the cut (results/qA60_M3_sncut.json): still passes; all π, ρ, N within 1.2σ of UKQCD.
+- M4 qA60 re-run (results/qA60_M4_unblinded_sncut.json): R-glueball aE 0.7670(215) → 0.7686(43)
+  (error 5× smaller: noise-only windows had entered the AIC spread); 94 HYP2 splittings: median
+  error 0.163 → 0.099 r0, median shift −0.012 r0 (max |shift| 0.154 r0).  Central values stable; the
+  cut adopted for all further analysis.
+- Stage B HMC (V100): 340 s/trajectory after thermalisation onset (CG iterations grow away from the
+  cold start; benchmark 38–72 s was from the cold start).  Acceptance 65 % (dB700), 57 % (dB570) with
+  12 outer steps → raised to 14 / 16.  Revised Stage B estimate ≈ 1,500 GPU-h; Stage C (32³×64) to be
+  re-estimated from benchmarks; budget to be re-checked against the 20k ceiling (report if exceeded).
