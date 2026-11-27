@@ -13,8 +13,9 @@ exec >> "$LOG" 2>&1
 echo "== $(date -u +%FT%TZ) persist start"
 cp -p "$S/blind/secret" "$P/blind/secret" && chmod 600 "$P/blind/secret"
 cd "$S/data" || exit 1
-for e in qA57 qA60 qA62 dB700 dB570; do
+for e in qA57 qA60 qA62 dB700 dB570 dB410 dB300 dC56 dC54; do
   [ -d "$e" ] || continue
+  mkdir -p "$P/correlators/$e/gluelump" "$P/correlators/$e/quark" "$O/$e"
   rsync -a --prune-empty-dirs --include='*/' --include='*_glue.h5' --exclude='*' "./$e/" "$P/correlators/$e/gluelump/"
   [ -d "$e/quark" ] && rsync -a --include='*/' --include='*.h5' --exclude='quda_tune/**' --exclude='*' "$e/quark/" "$P/correlators/$e/quark/"
   rsync -a --prune-empty-dirs --include='*/' --include="${e}_s*_c[0-9][0-9][0-9][0-9].h5" --include='*_ckpt.h5' \
