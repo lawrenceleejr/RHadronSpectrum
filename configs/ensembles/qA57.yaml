@@ -11,7 +11,7 @@ seed: 526
 save_configs: true
 gluelump:
   ape_alpha: 0.5
-  ape_levels: [3, 8]
-  shapes: [plaq, chair, lplaq]
+  ape_levels: [2, 3, 6, 10]             # enlarged basis 2026-11-27 (was 2 levels)
+  shapes: [plaq, rect, chair, lplaq]
   tmax: 8
   hyp1_every: 4              # second static action (HYP1) on every 4th config
