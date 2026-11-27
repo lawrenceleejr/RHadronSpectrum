@@ -38,6 +38,14 @@ def load(files, action="HYP2"):
                 continue
             rows.append((int(h.attrs["stream"]), int(h.attrs["cfg"]), f))
     rows.sort()
+    # keep only files measured with the modal operator basis (basis changes are re-measured, never mixed)
+    shapes = {}
+    for s_, c_, f in rows:
+        with h5py.File(f, "r") as h:
+            shapes[f] = h[f"{action}/T1g-"].shape if "T1g-" in h[action] else None
+    from collections import Counter
+    modal = Counter(v for v in shapes.values() if v is not None).most_common(1)[0][0]
+    rows = [r for r in rows if shapes[r[2]] == modal]
     data, meta = {}, []
     for s, c, f in rows:
         with h5py.File(f, "r") as h:

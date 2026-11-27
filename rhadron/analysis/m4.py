@@ -49,6 +49,10 @@ def load_glue(tag, keys, action="HYP2", channel="T1g-"):
             with h5py.File(f, "r") as h:
                 if action in h and channel in h[action]:
                     out[(s, c)] = h[f"{action}/{channel}"][...]
+    if out:  # modal operator basis only (never mix bases across configurations)
+        from collections import Counter
+        modal = Counter(v.shape for v in out.values()).most_common(1)[0][0]
+        out = {k: v for k, v in out.items() if v.shape == modal}
     return out
 
 
