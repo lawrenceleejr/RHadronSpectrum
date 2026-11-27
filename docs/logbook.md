@@ -385,3 +385,8 @@ the shared baryon machinery (used for the R-baryons) is validated.
   t = 12–18.  New rule for all channels and both spacings: t_max = last t with C/σ ≥ 4; the onset is
   searched below that and capped at t_max − 3.  The rule depends only on signal-to-noise, not on any
   reference value.  M3 and M4 results are re-evaluated with it (both reported).
+- Stage B (M5) started (user approval 2026-11-27): HMC DAGs dB700 43306882 and dB570 43306883,
+  4 streams × (500 thermalisation + 100 cfgs × 10 traj), τ = 0.5, Omelyan 12×5, V100/A100/H100.
+  Fixes before launch: per-stream RNG seeds; per-segment HMC logs.  Quark settings added (unitary κ,
+  paired sources, densities on); MG vs BiCGStab to be benchmarked on the first configurations.
+- qA62 quark production on all remaining 299 configs: DAG 43306865.

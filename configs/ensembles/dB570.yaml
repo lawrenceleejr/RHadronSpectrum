@@ -18,3 +18,25 @@ hmc:
   n_warm_noreject: 0    # forced acceptance of large-dH trajectories made the clover term non-HPD
   n_therm: 500
   save_every: 10
+quark:                       # Stage B valence sector: unitary (valence = sea kappas), PACS-CS NP c_SW
+  csw: 1.715
+  kappas: {l1: 0.13727, s: 0.13640}
+  light_roles: [l1]
+  link_smear: {alpha: 0.5, n: 10}
+  smear_levels: [[0.25, 30], [0.25, 90]]
+  n_src: 8
+  pair_sep: 12
+  densities: true            # light-quark charge/matter maps around the gluino (final visualisation)
+  light_hadrons: true        # unitary pi, rho, N for the scale / m_pi
+  tmax: 14
+  tol: 1.0e-9
+  maxiter: 6000
+  multigrid: [[4, 4, 4, 4], [2, 2, 2, 2]]   # lighter dynamical quarks: benchmark MG vs BiCGStab first
+  static_actions: [HYP2, HYP1]
+  seed: 570
+gluelump:
+  ape_alpha: 0.5
+  ape_levels: [10, 25]
+  shapes: [plaq, chair, lplaq]
+  tmax: 12
+  hyp1_every: 4
