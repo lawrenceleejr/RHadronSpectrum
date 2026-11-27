@@ -446,3 +446,13 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   iam-ildg.cloud.cnaf.infn.it; token-based gfal/curl downloads) — the user has to register; ~1.2 GB per
   config in double precision.  Same action/parameters as our dB* ensembles, so they would slot in as
   dB410/dB300 (and the physical point) at larger volume.
+
+## 2026-11-27 (afternoon) — Stage C check-in
+- dB410 cold benchmark (V100-PCIe-32GB): 12/12 accepted at n_outer 16, s/traj rising 266 → 418 (not yet
+  saturated; dH rising to 0.1-0.25).  Stage B cold runs saturated near 340 s on V100; dB410 equilibrium
+  expected ~600-900 s/traj (< 1000), so dC54 is kept for now.  Projection unchanged ≈ 13,800 GPU-h.
+- Warm-start dB410 benchmark (43322754) and dC56/dC54 benchmarks (43322779) have not started yet.
+- Stage B: segments from traj 40 still idle (~9 h); only 6 slots matched.  HMC peak device memory is
+  8.7 GB (24³×48), so the GPU floor for dB700/dB570/dB410 was lowered from 15 GB to 10 GB (adds RTX 2080 Ti;
+  same FP64 class as the already-allowed Quadro RTX 6000), via condor_qedit (expression, not string) and in
+  each DAG's hmc.sub.  Real bottleneck is fair share (effective priority 39,300 after ~47.5k slot-h).
