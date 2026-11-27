@@ -61,9 +61,28 @@ def load(files, key):
     return np.array([r[2] for r in rows]), meta
 
 
-def energy_jk(c, meta, binsize, t0, tmax, onset=True):
+SN_MIN = 4.0  # post-M4-unblinding rule (logbook 2026-11-27): fit only where C/sigma >= SN_MIN
+
+
+def sn_tmax(pc, tmax):
+    """Last t <= tmax with C(t)/sigma(t) >= SN_MIN (contiguous from t = 0)."""
+    m = pc.mean(axis=0)
+    s = pc.std(axis=0) / np.sqrt(len(pc))
+    t_ok = tmax
+    for t in range(1, tmax + 1):
+        if not (m[t] > 0 and m[t] / s[t] >= SN_MIN):
+            t_ok = t - 1
+            break
+    return t_ok
+
+
+def energy_jk(c, meta, binsize, t0, tmax, onset=True, sn_cut=True):
     pc = binned(c.real, meta, binsize)
-    tfl = plateau_onset(pc, t0 + 1, tmax) if onset else None
+    if sn_cut:
+        tmax = max(t0 + 3, min(tmax, sn_tmax(pc, tmax)))
+    tfl = plateau_onset(pc, t0 + 1, max(t0 + 4, tmax - 1)) if onset else None
+    if tfl is not None:
+        tfl = min(tfl, max(t0 + 1, tmax - 3))  # onset may not leave fewer than 3 points
     wins = fit_windows(pc, t0, tmax, tmin_floor=tfl)
     if not wins:
         return None

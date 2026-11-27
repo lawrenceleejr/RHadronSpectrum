@@ -377,3 +377,11 @@ the shared baryon machinery (used for the R-baryons) is validated.
   (S⁰ lightest R-baryon).  β = 6.2: R-meson fits on late noise windows (t = 12–18) → undetermined;
   FLAGGED.  Proposed: quark measurements on all ~380 qA62 configs; t_max signal-to-noise cut
   (post-unblinding change, documented).
+
+## 2026-11-27 — User: proceed with both (β = 6.2 completion and Stage B)
+
+- Post-unblinding analysis change (documented as such): the plateau-onset rule fires on noise when
+  σ is large (|m(t) − m(t+2)| < σ trivially satisfied at late t), which pushed β = 6.2 fits to
+  t = 12–18.  New rule for all channels and both spacings: t_max = last t with C/σ ≥ 4; the onset is
+  searched below that and capped at t_max − 3.  The rule depends only on signal-to-noise, not on any
+  reference value.  M3 and M4 results are re-evaluated with it (both reported).
