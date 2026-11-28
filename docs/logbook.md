@@ -467,3 +467,21 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   dB700 s3 and dB410 s0 were vacated off RTX 3060s (resume from checkpoint).
 - Acceptance at n_outer 14/16 not yet measurable (one trajectory per stream so far).
 - Warm dB410 and dC56/dC54 benchmarks still idle; Stage C projection unchanged (≈ 13,800 GPU-h).
+
+## 2026-11-28 00:40 — Stage C benchmarks, Stage B acceptance, HMC diagnostic
+- Warm dB410 benchmark (V100-SXM2-16GB, from dB570 s1 traj 40, n_outer 16): 462-484 s/traj, acceptance
+  5/12, <dH> ≈ 1.1.  n_outer → 20 for later dB410 segments (dH ∝ h⁴ → ×0.41; cost ×1.25 ≈ 590 s/traj).
+  dB410 HMC ≈ 6000 × 590 s ≈ 1,000 V100-h (earlier estimate 1,700): dC54 is kept.
+- dC56/dC54 benchmarks (32³×64): QUDA OOM on V100-32GB (24³×48 peaks at 8.7 GB; ×3.16 volume).
+  Resubmitted requiring ≥ 39 GB (cluster 43383382).  β = 2.05 production will need A100/H100 only.
+- All HMC segments now on V100/A100/H100 (RequireGPUs expression verified on the 12 queued jobs).
+- Stage B from traj 40 (n_outer 14/16): acceptance did NOT improve (dB700 0.56 → 0.36, dB570 0.45 → 0.43;
+  mean dH 0.8-2.1).  Plaquette still drifting down (0.5725 → 0.5710): still thermalising.
+  dB570 s2 traj 73-77: five rejections in a row from one configuration, dH = 30, 10, 10266, 1, 5.
+  Light pair is an exact 2-flavour pseudofermion (no rational approximation; the strange x^{1/4}
+  approximation on [7e-4, 32] acts on the heavier strange operator), so suspicion falls on the light CG:
+  Stage B had maxiter 5000 with QUDA output silenced, so an unconverged action solve would be invisible.
+  maxiter → 20000 for later Stage B segments; added hmc.verbose (QUDA_SUMMARIZE) and submitted a
+  diagnostic replay from dB570 s2 traj 80 with maxiter 5000 + verbose (cluster 43383484, 6 traj).
+  No measured configurations affected: all streams are within n_therm = 500.
+- HMC logged so far: 643 trajectories, 48.8 GPU-h.  Stage C projection ≈ 13,000 GPU-h total.
