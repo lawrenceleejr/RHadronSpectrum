@@ -502,3 +502,22 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   (43395415, 43395416): A100/H100 ≥ 39 GB, 8 GB memory, 15 GB disk, n_outer 20.
 - Projection: β = 2.05 ≈ 2 × 6000 × ~700 s ≈ 2,300 GPU-h HMC (+ ~1,600 meas.) — below the 6,300 estimate.
   Total ≈ 11,000-12,000 GPU-h.
+
+## 2026-11-28 08:45 — HMC dH diagnosis concluded: outer (fermion) step too large
+Replays from dB570 s2 traj 80, identical seeds, 4 trajectories each (V100):
+| variant        | dH (traj 81-84)              | accepted |
+|----------------|------------------------------|----------|
+| 16 × 5 (prod.) | 39.8, 55.5, 5.80, 5.51       | 0/4      |
+| 32 × 5         | -0.41, -0.08, -0.10, 0.32    | 4/4      |
+| 16 × 10        | identical to 16 × 5 (< 1e-3) | 0/4      |
+- Halving the outer step reduces |dH| 15-100× (≥ the h⁴ factor 16): fermion-force integration error near
+  its stability threshold at n_outer 16, not an action/force inconsistency.  The inner (gauge) integration
+  is already converged (n_inner 5 vs 10 agree to < 1e-3); dSg ~ 10³ is the physical change along the
+  trajectory, cancelled by dK and dSf.
+- New n_outer for later segments (dH ∝ h⁴, target mean dH ≈ 0.3): dB700 14 → 20, dB570 16 → 28,
+  dB410 20 → 28.  β = 2.05 stays at 20 until warm data.  Running segments finish with the old values;
+  all affected trajectories are thermalisation (≤ traj ~130 of 500).
+- Hasenbusch mass preconditioning would be cheaper but PyQUDA has no ratio monomial (new code +
+  validation); deferred.
+- Cost: Stage B HMC ≈ 1,800 V100-h (was 1,300), dB410 ≈ 1,400 (was 1,000).  Higher acceptance shortens
+  autocorrelations, partly compensating.  Total projection ≈ 12,000-13,000 GPU-h.
