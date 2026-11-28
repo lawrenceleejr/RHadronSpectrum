@@ -69,9 +69,11 @@ def run(ens, outdir, until, start=None, log=print):
         t0 = time.perf_counter()
         hmc.gaussMom()
         hmc.samplePhi()
-        k0, p0 = hmc.momAction(), hmc.gaugeAction() + hmc.fermionAction()
+        k0, g0, f0 = hmc.momAction(), hmc.gaugeAction(), hmc.fermionAction()
+        p0 = g0 + f0
         hmc.integrate(tau, 2e-15)
-        k1, p1 = hmc.momAction(), hmc.gaugeAction() + hmc.fermionAction()
+        k1, g1, f1 = hmc.momAction(), hmc.gaugeAction(), hmc.fermionAction()
+        p1 = g1 + f1
         dH = (k1 + p1) - (k0 + p0)
         warm = traj < int(h.get("n_warm_noreject", 0))
         acc = hmc.accept(dH)
@@ -82,7 +84,8 @@ def run(ens, outdir, until, start=None, log=print):
         traj += 1
         plaq = float(hmc.plaquette()[0])
         rec = {"traj": traj, "dH": float(dH), "accept": bool(acc), "warm": warm, "plaq": plaq,
-               "exp_mdH": float(exp(min(-dH, 50))), "sec": time.perf_counter() - t0}
+               "exp_mdH": float(exp(min(-dH, 50))), "sec": time.perf_counter() - t0,
+               "dK": float(k1 - k0), "dSg": float(g1 - g0), "dSf": float(f1 - f0)}
         logf.write(json.dumps(rec) + "\n")
         logf.flush()
         log(json.dumps(rec), flush=True)
