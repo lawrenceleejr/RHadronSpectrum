@@ -485,3 +485,20 @@ Stage C HMC benchmarks dB410 / dB300 (43307054); literature lookup for the secon
   diagnostic replay from dB570 s2 traj 80 with maxiter 5000 + verbose (cluster 43383484, 6 traj).
   No measured configurations affected: all streams are within n_therm = 500.
 - HMC logged so far: 643 trajectories, 48.8 GPU-h.  Stage C projection ≈ 13,000 GPU-h total.
+
+## 2026-11-28 06:00 — HMC diagnostic result; β = 2.05 launched
+- Diagnostic replay (43383484, V100, dB570 s2 traj 80→86, maxiter 5000, QUDA SUMMARIZE): no solve near
+  maxiter (light CG ≤ ~1,760 iterations; MultiShift ~500); no warnings.  Yet dH = 40, 56, 5.8, 5.5, 5.3,
+  1.7 from the same configuration.  Unconverged solves are ruled out.
+- QUDA κ-normalised even-even asymmetric MATPC: M†M spectrum well inside the strange rational range
+  [7e-4, 32], so the approximation range is not the suspect either.
+- Next test (cluster 43395412): dH split into dK/dSg/dSf (new log fields) and three replays with identical
+  seeds — base (16×5), n_outer 32, n_inner 10.  Integration error should drop ~16× when the relevant step
+  is halved; a dH that stays put points to an action/force inconsistency.
+- Stage B/dB410 now (last 20 traj): dB700 acc 0.35-0.50 (mean dH 0.8-1.6); dB570 0.10-0.45 (mean dH 2.4-6.8,
+  7 spikes dH > 10 on s2); dB410 0.40-0.70.  Thermalisation trajectories only (≤ traj 120 of 500).
+- dC56 (H100) / dC54 (A100) cold benchmarks: 12 traj each, 285 → 298 s and 476 → 530 s per trajectory,
+  acceptance 7/12 and 11/12; 27.6 GB device, 4.7 GB host memory.  Production DAGs submitted
+  (43395415, 43395416): A100/H100 ≥ 39 GB, 8 GB memory, 15 GB disk, n_outer 20.
+- Projection: β = 2.05 ≈ 2 × 6000 × ~700 s ≈ 2,300 GPU-h HMC (+ ~1,600 meas.) — below the 6,300 estimate.
+  Total ≈ 11,000-12,000 GPU-h.
