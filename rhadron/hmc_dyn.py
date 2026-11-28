@@ -48,7 +48,8 @@ def run(ens, outdir, until, start=None, log=print):
                                 precondition=QP.QUDA_SINGLE_PRECISION)
     hmc_inner = HMC(li, monomials[:1], O4Nf5Ng0V(int(h["n_inner"])))
     hmc = HMC(li, monomials[1:], O4Nf5Ng0V(int(h["n_outer"])), hmc_inner)
-    hmc.setFermionVerbosity(QudaVerbosity.QUDA_SILENT)
+    # hmc.verbose: print QUDA solver summaries (CG iteration counts, max-iteration warnings) for diagnostics
+    hmc.setFermionVerbosity(QudaVerbosity.QUDA_SUMMARIZE if h.get("verbose") else QudaVerbosity.QUDA_SILENT)
 
     ck = os.path.join(outdir, f"{tag}_s{ens.get('stream', 0)}_ckpt.h5")
     traj = 0
