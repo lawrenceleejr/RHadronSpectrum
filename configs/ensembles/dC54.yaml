@@ -10,7 +10,7 @@ shape: [64, 32, 32, 32]
 seed: 2054
 hmc:
   tau: 0.5             # PACS-CS-like trajectory length
-  n_outer: 16           # benchmark
+  n_outer: 20           # 16: cold benchmark dH rising to 1-2 (dB410 warm: 42% acc at 16)
   n_inner: 5
   rational: [12, 15, 7.0e-4, 32, 50]   # as PyQUDA test_hmc_clover; checked at the benchmark
   tol: 1.0e-9

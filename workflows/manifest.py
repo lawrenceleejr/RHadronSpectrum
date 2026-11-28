@@ -348,8 +348,8 @@ when_to_transfer_output = ON_EXIT_OR_EVICT
 request_gpus = 1
 require_gpus = {a.gpureq}
 request_cpus = 1
-request_memory = 4GB
-request_disk = 10GB
+request_memory = {a.mem}
+request_disk = {a.disk}
 priority = 10
 periodic_release = ((HoldReasonCode == 13 || HoldReasonCode == 12) && (NumJobStarts < 6)) || (HoldReasonCode == 47 && NumJobStarts < 20)
 log = $(IWD)/logs/{tag}_s$(STREAM).log
@@ -408,6 +408,8 @@ def main():
     hd.add_argument("--segment", type=int, default=40, help="trajectories per job")
     hd.add_argument("--image", required=True)
     hd.add_argument("--gpureq", default="(Capability == 7.0 || Capability == 8.0 || Capability == 9.0) && (GlobalMemoryMb >= 15000)")  # FP64 GPUs only: RTX 3060 measured 3700 s/traj vs 340 (V100), 88 (H100)
+    hd.add_argument("--mem", default="4GB")  # 32³×64 needs ~5 GB host memory
+    hd.add_argument("--disk", default="10GB")
     hd.add_argument("--maxjobs", type=int, default=8)
     r = sub.add_parser("refresh-code")
     r.add_argument("tag")
